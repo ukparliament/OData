@@ -17,9 +17,17 @@
 
     public class BaseController : ODataController
     {
+        protected static Uri NamespaceUri
+        {
+            get
+            {
+                var namespaceBase = ConfigurationManager.AppSettings["NamespaceBase"];
+                return new Uri(namespaceBase);
+            }
+        }
+
         protected static IEnumerable<IOntologyInstance> Deserialize(string queryString)
         {
-            var x = new Uri("http://id.ukpds.org/");
 
             using (var result = Query(queryString))
             {
@@ -27,7 +35,7 @@
 
                 foreach (var item in instances)
                 {
-                    item.Id = x.MakeRelativeUri(new Uri(item.Id)).ToString();
+                    item.Id = BaseController.NamespaceUri.MakeRelativeUri(new Uri(item.Id)).ToString();
                 }
 
                 return instances;

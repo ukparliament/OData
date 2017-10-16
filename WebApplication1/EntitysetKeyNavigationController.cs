@@ -44,7 +44,7 @@
             var queryString = EntitysetKeyNavigationController.BuildQueryTemplate(properties);
             var query = new SparqlParameterizedString(queryString);
 
-            query.SetUri("instanceUri", new Uri($"http://id.ukpds.org/{key}"));
+            query.SetUri("instanceUri", new Uri(BaseController.NamespaceUri, key));
             query.SetUri("entityClassUri", entityClassUri);
             query.SetUri("navigationClassUri", navigationClassUri);
             query.SetUri("navigationPropertyUri", navigationPropertyUri);

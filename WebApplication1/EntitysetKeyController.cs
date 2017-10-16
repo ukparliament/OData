@@ -39,7 +39,7 @@
             var queryString = EntitysetKeyController.BuildQueryTemplate(properties);
             var query = new SparqlParameterizedString(queryString);
 
-            query.SetUri("instanceUri", new Uri($"http://id.ukpds.org/{key}"));
+            query.SetUri("instanceUri", new Uri(BaseController.NamespaceUri, key));
             query.SetUri("entityClassUri", entityClassUri);
 
             foreach (var property in properties)
