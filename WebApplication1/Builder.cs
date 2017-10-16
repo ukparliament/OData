@@ -1,46 +1,61 @@
 ﻿namespace WebApplication1
 {
+    using Parliament.Ontology.Base;
     using Parliament.Ontology.Code;
+    using System.Linq;
     using System.Web.OData.Builder;
 
-    /// <summary>
-    /// A custom OData model builder that doesn't fail on self-references
-    /// </summary>
-    public class Builder : ODataModelBuilder
+    public class Builder : ODataConventionModelBuilder
     {
         public Builder()
         {
-            AddEntityTypes();
-            AddEntitySets();
-        }
+            this.OnModelCreating = b =>
+            {
+                foreach (var item in b.StructuralTypes.Where(x => !x.ClrType.IsInterface))
+                {
+                    foreach (var p in item.Properties.ToArray())
+                    {
+                        item.RemoveProperty(p.PropertyInfo);
+                    }
+                }
+            };
 
-        private void AddEntityTypes()
-        {
-            var iHouseSeat = this.EntityType<IHouseSeat>();
-            iHouseSeat.HasKey(x => x.HouseSeatName);
+            var iOntologyInstance = this.AddEntityType(typeof(IOntologyInstance));
+            iOntologyInstance.HasKey(typeof(IOntologyInstance).GetProperty(nameof(IOntologyInstance.Id)));
+            iOntologyInstance.Abstract();
 
-            var iIncumbency = this.EntityType<IIncumbency>();
-            iIncumbency.HasKey(x => x.IncumbencyStartDate);
+            var assembly = typeof(IPerson).Assembly;
 
-            var iSeatIncumbency = this.EntityType<ISeatIncumbency>();
-            iSeatIncumbency.DerivesFrom<IIncumbency>();
-            iSeatIncumbency.HasOptional(x => x.SeatIncumbencyHasHouseSeat);
-            iSeatIncumbency.HasMany(x => x.SeatIncumbencyHasParliamentPeriod);
+            var interfaces = assembly.GetTypes().Where(x => x.IsInterface);
+            foreach (var @interface in interfaces)
+            {
+                var entityType = this.AddEntityType(@interface);
+                entityType.Abstract();
 
-            var iParliamentPeriod = this.EntityType<IParliamentPeriod>();
-            iParliamentPeriod.HasKey(x => x.ParliamentPeriodNumber);
-            iParliamentPeriod.Property(x => x.ParliamentPeriodStartDate);
-            iParliamentPeriod.HasOptional(x => x.ParliamentPeriodHasImmediatelyPreviousParliamentPeriod);
-            iParliamentPeriod.HasMany(x => x.ParliamentPeriodHasImmediatelyFollowingParliamentPeriod);
-            iParliamentPeriod.HasMany(x => x.ParliamentPeriodHasSeatIncumbency);
-        }
+                var superInterfaces = @interface.GetInterfaces().AsEnumerable();
+                superInterfaces = superInterfaces.Except(superInterfaces.SelectMany(x => x.GetInterfaces()));
 
-        private void AddEntitySets()
-        {
-            this.EntitySet<IHouseSeat>("HouseSeats");
-            this.EntitySet<IIncumbency>("Incumbencies");
-            this.EntitySet<ISeatIncumbency>("SeatIncumbencies");
-            this.EntitySet<IParliamentPeriod>("ParliamentPeriods");
+                foreach (var superInterface in superInterfaces)
+                {
+                    entityType.DerivesFrom(new EntityTypeConfiguration(this, superInterface));
+                }
+            }
+
+            var classes = assembly.GetTypes().Where(x => !x.IsInterface);
+            foreach (var @class in classes)
+            {
+                var entityType = this.AddEntityType(@class);
+
+                var superInterfaces = @class.GetInterfaces().AsEnumerable();
+                superInterfaces = superInterfaces.Except(superInterfaces.SelectMany(x => x.GetInterfaces()));
+
+                foreach (var superInterface in superInterfaces)
+                {
+                    entityType.DerivesFrom(new EntityTypeConfiguration(this, superInterface));
+                }
+
+                this.AddEntitySet(@class.Name, entityType);
+            }
         }
     }
 }
