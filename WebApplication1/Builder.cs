@@ -53,6 +53,9 @@
                 {
                     entityType.DerivesFrom(new EntityTypeConfiguration(this, superInterface));
                 }
+                
+                string[] propertyNames = @class.GetProperties().Select(p => p.Name).ToArray();
+                entityType.QueryConfiguration.SetSelect(propertyNames, System.Web.OData.Query.SelectExpandType.Allowed);
 
                 this.AddEntitySet(@class.Name, entityType);
             }
