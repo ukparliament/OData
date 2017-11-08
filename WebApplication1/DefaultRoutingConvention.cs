@@ -23,7 +23,7 @@
                         return "Entityset";
 
                     case "~/entityset/key":// http://example.com/Person('asdf1234')
-                        return "EntitysetKey";
+                        return "Entityset";
 
                     case "~/entityset/key/navigation":// http://example.com/Person('asdf1234')/PersonHasPersonImage
                         return "EntitysetKey";// "EntitysetKeyNavigation";
