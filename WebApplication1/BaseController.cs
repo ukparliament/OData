@@ -103,8 +103,9 @@
 
         private static string BuildSparql(ODataQueryOptions options)
         {
-            var edmEntityType = options.Context.Path.EdmType.AsElementType() as EdmEntityType;
+            var edmEntityType = options.Context.Path.Segments[0].EdmType.AsElementType() as EdmEntityType;
             string idKey = null;
+            string navProp = null;
             if (options.Context.Path.Segments.Count > 1)
             {
                 var keys = (options.Context.Path.Segments[1] as KeySegment).Keys.ToList();
@@ -112,6 +113,10 @@
                 {
                     idKey = keys[0].Value.ToString();
                 }
+            }
+            if (options.Context.Path.Segments.Count > 2)
+            {
+                navProp = (options.Context.Path.Segments[2] as NavigationPropertySegment).NavigationProperty.Name;
             }
 
             NodeFactory nodeFactory = new NodeFactory();
@@ -186,13 +191,6 @@
                     }
                 }
             }
-            
-            IQueryBuilder queryBuilder = QueryBuilder
-                .Construct(q => q.Where(classTriplePatterns.Concat(predicateTriplePatterns).ToArray()))
-                .Where(classTriplePatterns.Concat(filterTriplePatterns).ToArray());
-
-            foreach (TriplePattern tp in predicateTriplePatterns)
-                queryBuilder.Optional(gp => gp.Where(tp));
 
             if (options.Top != null)
             {
@@ -213,6 +211,20 @@
                     Debug.WriteLine("Direction: " + typedNode.OrderByClause.Direction);
                 }
             }
+
+            if (navProp != null)
+            {
+                predicateTriplePatterns.Add(new TriplePattern(root,
+                    new NodeMatchPattern(nodeFactory.CreateUriNode(new Uri(properties[navProp].Item2.AbsoluteUri))),
+                    new VariablePattern($"?{navProp}")));
+            }
+
+            IQueryBuilder queryBuilder = QueryBuilder
+                .Construct(q => q.Where(classTriplePatterns.Concat(predicateTriplePatterns).ToArray()))
+                .Where(classTriplePatterns.Concat(filterTriplePatterns).ToArray());
+
+            foreach (TriplePattern tp in predicateTriplePatterns)
+                queryBuilder.Optional(gp => gp.Where(tp));
 
             return queryBuilder.BuildQuery().ToString();
         }

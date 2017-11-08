@@ -16,6 +16,8 @@
         //http://localhost:2933/House?$select=HouseName
         //http://localhost:2933/House('1AFu55Hs')
         //http://localhost:2933/House('1AFu55Hs')?$select=HouseName
+        //http://localhost:2933/Person('QdTpvoeQ')?$select=PersonGivenName
+        //http://localhost:2933/House('1AFu55Hs')?$filter=HouseName%20eq%20%27House%20of%20Commons%27&$select=Id,HouseName
 
         [HttpGet]
         [EnableQuery(AllowedQueryOptions = System.Web.OData.Query.AllowedQueryOptions.Select |

@@ -68,7 +68,6 @@
     <Compile Include="Builder.cs" />
     <Compile Include="EntitysetController.cs" />
     <Compile Include="DefaultRoutingConvention.cs" />
-    <Compile Include="EntitysetKeyNavigationController.cs" />
     <Compile Include="Global.asax.cs">
       <DependentUpon>Global.asax</DependentUpon>
     </Compile>

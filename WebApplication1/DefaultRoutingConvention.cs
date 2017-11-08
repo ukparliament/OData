@@ -26,7 +26,7 @@
                         return "Entityset";
 
                     case "~/entityset/key/navigation":// http://example.com/Person('asdf1234')/PersonHasPersonImage
-                        return "EntitysetKey";// "EntitysetKeyNavigation";
+                        return "Entityset";// "EntitysetKeyNavigation";
 
                     case "~":
                     case "~/$metadata":
