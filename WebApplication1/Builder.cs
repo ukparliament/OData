@@ -56,7 +56,7 @@
                 
                 string[] propertyNames = @class.GetProperties().Select(p => p.Name).ToArray();
                 entityType.QueryConfiguration.SetSelect(propertyNames, System.Web.OData.Query.SelectExpandType.Allowed);
-
+                entityType.QueryConfiguration.SetFilter(propertyNames, true);
                 this.AddEntitySet(@class.Name, entityType);
             }
         }

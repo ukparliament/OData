@@ -1,6 +1,7 @@
 ﻿namespace WebApplication1
 {
     using Microsoft.OData.Edm;
+    using Microsoft.OData.UriParser;
     using Parliament.Ontology.Base;
     using Parliament.Ontology.Code;
     using Parliament.Ontology.Serializer;
@@ -8,15 +9,22 @@
     using System.Collections;
     using System.Collections.Generic;
     using System.Configuration;
+    using System.Diagnostics;
     using System.IO;
     using System.Linq;
     using System.Linq.Expressions;
+    using System.Net.Http;
     using System.Reflection;
     using System.Web.Http;
     using System.Web.Http.Results;
     using System.Web.OData;
+    using System.Web.OData.Builder;
+    using System.Web.OData.Query;
     using System.Web.OData.Routing;
     using VDS.RDF;
+    using VDS.RDF.Parsing;
+    using VDS.RDF.Query.Builder;
+    using VDS.RDF.Query.Patterns;
     using VDS.RDF.Storage;
 
     public class BaseController : ODataController
@@ -83,73 +91,163 @@
             return mapping;
         }
 
-        //work only on primitive types and implement select option only
-        protected static Expression GenerateExpression(ODataPath path, string requestQuery)
+        protected static ODataQueryOptions GetQueryOptions(HttpRequestMessage request)
         {
+            System.Web.OData.Routing.ODataPath path = request.Properties["System.Web.OData.Path"] as System.Web.OData.Routing.ODataPath;
             var edmType = path.EdmType.AsElementType() as EdmEntityType;
+            Type entityType = BaseController.GetType(edmType);
+            ODataModelBuilder modelBuilder = new Builder();
+            ODataQueryContext context = new ODataQueryContext(modelBuilder.GetEdmModel(), entityType, path);
+            return new ODataQueryOptions(context, request);
+        }
 
-            Dictionary<string, Tuple<Type, Uri>> properties = GetAllProperties(edmType);
-
-            string[] queryStrings = requestQuery
-                .Replace("?", string.Empty)
-                .Split(new char[] { '&' }, StringSplitOptions.RemoveEmptyEntries);
-
-            List<Expression> expressions = new List<Expression>();
-            Expression projection = null;
-            foreach (string queryString in queryStrings)
+        private static string BuildSparql(ODataQueryOptions options)
+        {
+            var edmEntityType = options.Context.Path.EdmType.AsElementType() as EdmEntityType;
+            string idKey = null;
+            if (options.Context.Path.Segments.Count > 1)
             {
-                if (queryString.StartsWith("$filter"))
+                var keys = (options.Context.Path.Segments[1] as KeySegment).Keys.ToList();
+                if (keys.Count() > 0)
                 {
-                }
-                if (queryString.StartsWith("$select"))
-                {
-                    string[] selectQueries = queryString
-                        .Substring(queryString.IndexOf('=') + 1)
-                        .Split(new char[] { ',' }, StringSplitOptions.RemoveEmptyEntries);
-                    projection = generateProjectionExpression(selectQueries, edmType);
-                    expressions.Add(projection);
+                    idKey = keys[0].Value.ToString();
                 }
             }
-            if (projection == null)
+
+            NodeFactory nodeFactory = new NodeFactory();
+            int i = 0;
+            PatternItem root = new VariablePattern($"?s{i}");
+            if (idKey != null)
+                root = new NodeMatchPattern(nodeFactory.CreateUriNode(new Uri(NamespaceUri, idKey)));
+            //Type entityType = BaseController.GetType(edmEntityType);
+            Dictionary <string, Tuple<Type, Uri>> properties = GetAllProperties(edmEntityType);
+
+            List<ITriplePattern> classTriplePatterns = new List<ITriplePattern>();
+            List<ITriplePattern> predicateTriplePatterns = new List<ITriplePattern>();
+            List<ITriplePattern> filterTriplePatterns = new List<ITriplePattern>();
+
+            classTriplePatterns.Add(new TriplePattern(root,
+                new NodeMatchPattern(nodeFactory.CreateUriNode(new Uri(RdfSpecsHelper.RdfType))),
+                new NodeMatchPattern(nodeFactory.CreateUriNode(new Uri(properties["Id"].Item2.AbsoluteUri)))));
+
+            if (options.SelectExpand != null && options.SelectExpand.SelectExpandClause != null)
             {
-                projection = generateProjectionExpression(null, edmType);
-                expressions.Add(projection);
+                foreach (var item in options.SelectExpand.SelectExpandClause.SelectedItems)
+                {
+                    var selectItem = item as PathSelectItem;
+                    if (selectItem != null && selectItem.SelectedPath != null)
+                    {
+                        var segment = selectItem.SelectedPath.FirstSegment as PropertySegment;
+                        if (segment != null)
+                        {
+                            var propName = segment.Property.Name;
+                            if (propName == "Id")
+                                continue;
+                            //foreach (string predicate in node.Item2)
+                            predicateTriplePatterns.Add(new TriplePattern(root,
+                                new NodeMatchPattern(nodeFactory.CreateUriNode(new Uri(properties[propName].Item2.AbsoluteUri))),
+                                new VariablePattern($"?{propName}")));
+                        }
+                    }
+                }
+                //i++;
+            }
+            else
+            {
+                var structProperties = edmEntityType.StructuralProperties();
+                foreach (var propName in structProperties)
+                {
+                    if (propName.Name != "Id")
+                    {
+                        var propertyUri = BaseController.GetPropertyUri(propName);
+                        predicateTriplePatterns.Add(new TriplePattern(root,
+                                    new NodeMatchPattern(nodeFactory.CreateUriNode(propertyUri)),
+                                    new VariablePattern($"?{propName.Name}")));
+                    }
+                }
             }
 
-            Expression expression = Expression.Empty();
-            if (expressions.Any())
-                expression = Expression.Block(expressions);
-
-            return expression;
-        }
-
-        private static Expression generateProjectionExpression(string[] selectQueries, EdmEntityType edmEntityType)
-        {
-            Type entityType = BaseController.GetType(edmEntityType);
-            Dictionary<string, Tuple<Type, Uri>> properties = GetAllProperties(edmEntityType);
-
-            List<Expression> expressions = new List<Expression>();
-            List<ParameterExpression> selectParameterExpressions = new List<ParameterExpression>();
-            if (selectQueries == null)
-                selectQueries = properties.Select(p => p.Key).ToArray();
-            foreach (string selectQuery in selectQueries)
+            if (options.Filter != null && options.Filter.FilterClause != null)
             {
-                if ((properties.ContainsKey(selectQuery)) && (selectQuery != "Id"))
-                    selectParameterExpressions.Add(Expression.Parameter(properties[selectQuery].Item1, properties[selectQuery].Item2.AbsoluteUri));
+                var binaryOperator = options.Filter.FilterClause.Expression as BinaryOperatorNode;
+                if (binaryOperator != null)
+                {
+                    var property = binaryOperator.Left as SingleValuePropertyAccessNode ?? binaryOperator.Right as SingleValuePropertyAccessNode;
+                    var constant = binaryOperator.Left as ConstantNode ?? binaryOperator.Right as ConstantNode;
+
+                    if (property != null && property.Property != null && constant != null && constant.Value != null)
+                    {
+                        filterTriplePatterns.Add(new TriplePattern(root,
+                                new NodeMatchPattern(nodeFactory.CreateUriNode(new Uri(properties[property.Property.Name].Item2.AbsoluteUri))),
+                                new NodeMatchPattern(nodeFactory.CreateLiteralNode(constant.LiteralText.Replace("'", "")))));
+                        //Debug.WriteLine("Property: " + property.Property.Name);
+                        //Debug.WriteLine("Operator: " + binaryOperator.OperatorKind);
+                        //Debug.WriteLine("Value: " + constant.LiteralText);
+                    }
+                }
             }
-            return Expression.Lambda(Expression.Parameter(entityType, properties["Id"].Item2.AbsoluteUri), selectParameterExpressions);
+            
+            IQueryBuilder queryBuilder = QueryBuilder
+                .Construct(q => q.Where(classTriplePatterns.Concat(predicateTriplePatterns).ToArray()))
+                .Where(classTriplePatterns.Concat(filterTriplePatterns).ToArray());
+
+            foreach (TriplePattern tp in predicateTriplePatterns)
+                queryBuilder.Optional(gp => gp.Where(tp));
+
+            if (options.Top != null)
+            {
+                Debug.WriteLine("Top: " + options.Top.Value);
+            }
+
+            if (options.Skip != null)
+            {
+                Debug.WriteLine("Skip: " + options.Skip.Value);
+            }
+
+            if (options.OrderBy != null && options.OrderBy.OrderByClause != null)
+            {
+                foreach (var node in options.OrderBy.OrderByNodes)
+                {
+                    var typedNode = node as OrderByPropertyNode;
+                    Debug.WriteLine("Property: " + typedNode.Property.Name);
+                    Debug.WriteLine("Direction: " + typedNode.OrderByClause.Direction);
+                }
+            }
+
+            return queryBuilder.BuildQuery().ToString();
         }
 
-        protected static object GenerateODataResult(Expression expression)
+        public static object Execute(ODataQueryOptions options) //Expression expression)
         {
-            DbQueryProvider dbQueryProvider = new DbQueryProvider();
-            IEnumerable<IOntologyInstance> result = dbQueryProvider.Execute(expression) as IEnumerable<IOntologyInstance>;
-            MethodInfo castMethod = typeof(Enumerable).GetMethod("Cast").MakeGenericMethod(result.First().GetType());
+            string sparqlEndpoint = ConfigurationManager.ConnectionStrings["SparqlEndpoint"].ConnectionString;
+            string queryString = BuildSparql(options); // expression);
+            IGraph graph = null;
+            using (var connector = new SparqlConnector(new Uri(sparqlEndpoint)))
+            {
+                graph = connector.Query(queryString) as IGraph;
+            }
 
-            return castMethod.Invoke(result, new object[] { result });
+            //Type elementType = TypeSystem.GetElementType(expression.Type);
+            Serializer serializer = new Serializer();
+            IEnumerable<IOntologyInstance> ontologyInstances = serializer.Deserialize(graph, typeof(IPerson).Assembly);
+
+            return ontologyInstances;
         }
 
-        private static Type convertPrimitiveEdmTypeToType(IEdmPrimitiveType edmType, bool isNullable)
+        protected static object GenerateODataResult(ODataQueryOptions options)//Expression expression)
+        {
+            //DbQueryProvider dbQueryProvider = new DbQueryProvider();
+            IEnumerable<IOntologyInstance> result = Execute(options) as IEnumerable<IOntologyInstance>;
+            if (result.Count() > 0)
+            {
+                MethodInfo castMethod = typeof(Enumerable).GetMethod("Cast").MakeGenericMethod(result.First().GetType());
+
+                return castMethod.Invoke(result, new object[] { result });
+            }
+            return result;
+        }
+
+        private static Type ConvertPrimitiveEdmTypeToType(IEdmPrimitiveType edmType, bool isNullable)
         {
             switch (edmType.PrimitiveKind)
             {
@@ -177,8 +275,8 @@
             return type.Properties()
                 .ToDictionary(p => p.Name, p =>
                     Tuple.Create<Type, Uri>(
-                        p.Type.Definition.TypeKind == EdmTypeKind.Primitive ? convertPrimitiveEdmTypeToType(p.Type.Definition as IEdmPrimitiveType, p.Type.IsNullable) : typeof(object),
-                        p.Name == "Id" ? getClassUri(type) : GetPropertyUri(p)
+                        p.Type.Definition.TypeKind == EdmTypeKind.Primitive ? ConvertPrimitiveEdmTypeToType(p.Type.Definition as IEdmPrimitiveType, p.Type.IsNullable) : typeof(object),
+                        p.Name == "Id" ? GetClassUri(type) : GetPropertyUri(p)
                     )
                 );
         }
@@ -198,7 +296,7 @@
             return null;
         }
 
-        private static Uri getClassUri(IEdmStructuredType structuredType)
+        private static Uri GetClassUri(IEdmStructuredType structuredType)
         {
             var declaringType = BaseController.GetInterface(structuredType);
 

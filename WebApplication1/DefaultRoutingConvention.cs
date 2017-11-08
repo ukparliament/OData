@@ -19,14 +19,14 @@
             {
                 switch (odataPath.PathTemplate)
                 {
-                    case "~/entityset":
+                    case "~/entityset": // http://example.com/Person
                         return "Entityset";
 
-                    case "~/entityset/key":
+                    case "~/entityset/key":// http://example.com/Person('asdf1234')
                         return "EntitysetKey";
 
-                    case "~/entityset/key/navigation":
-                        return "EntitysetKeyNavigation";
+                    case "~/entityset/key/navigation":// http://example.com/Person('asdf1234')/PersonHasPersonImage
+                        return "EntitysetKey";// "EntitysetKeyNavigation";
 
                     case "~":
                     case "~/$metadata":
