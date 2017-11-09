@@ -18,10 +18,11 @@
         //http://localhost:2933/House('1AFu55Hs')?$select=HouseName
         //http://localhost:2933/Person('QdTpvoeQ')?$select=PersonGivenName
         //http://localhost:2933/House('1AFu55Hs')?$filter=HouseName%20eq%20%27House%20of%20Commons%27&$select=Id,HouseName
+        //http://localhost:2933/House('1AFu55Hs')/HouseHasHouseSeat?$top=2
 
         [HttpGet]
-        [EnableQuery(AllowedQueryOptions = System.Web.OData.Query.AllowedQueryOptions.Select |
-            System.Web.OData.Query.AllowedQueryOptions.Filter)]
+        //[EnableQuery(AllowedQueryOptions = System.Web.OData.Query.AllowedQueryOptions.Select |
+        //    System.Web.OData.Query.AllowedQueryOptions.Filter)]
         public IHttpActionResult Default()
         {
             ODataQueryOptions option = GetQueryOptions(Request);

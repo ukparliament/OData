@@ -65,7 +65,11 @@
         protected static Type GetInterface(IEdmType type)
         {
             var mappingAssembly = typeof(IPerson).Assembly; // TODO: ???
-            return mappingAssembly.GetType(type.FullTypeName()).GetInterface($"I{((EdmEntityType)type).Name}");
+            var t = mappingAssembly.GetType(type.FullTypeName());
+            if (t.IsInterface)
+                return t;
+            else
+                return t.GetInterface($"I{((EdmEntityType)type).Name}");
         }
 
         protected static Type GetType(IEdmType type)
@@ -106,6 +110,7 @@
             var edmEntityType = options.Context.Path.Segments[0].EdmType.AsElementType() as EdmEntityType;
             string idKey = null;
             string navProp = null;
+            EdmEntityType navPropType = null;
             if (options.Context.Path.Segments.Count > 1)
             {
                 var keys = (options.Context.Path.Segments[1] as KeySegment).Keys.ToList();
@@ -117,11 +122,12 @@
             if (options.Context.Path.Segments.Count > 2)
             {
                 navProp = (options.Context.Path.Segments[2] as NavigationPropertySegment).NavigationProperty.Name;
+                navPropType = (options.Context.Path.Segments[2] as NavigationPropertySegment).EdmType.AsElementType() as EdmEntityType;
             }
 
             NodeFactory nodeFactory = new NodeFactory();
-            int i = 0;
-            PatternItem root = new VariablePattern($"?s{i}");
+            //int i = 0;
+            PatternItem root = new VariablePattern("Id"); //new VariablePattern($"?s{i}");
             if (idKey != null)
                 root = new NodeMatchPattern(nodeFactory.CreateUriNode(new Uri(NamespaceUri, idKey)));
             //Type entityType = BaseController.GetType(edmEntityType);
@@ -130,6 +136,7 @@
             List<ITriplePattern> classTriplePatterns = new List<ITriplePattern>();
             List<ITriplePattern> predicateTriplePatterns = new List<ITriplePattern>();
             List<ITriplePattern> filterTriplePatterns = new List<ITriplePattern>();
+            List<ITriplePattern> navTriplePatterns = new List<ITriplePattern>();
 
             classTriplePatterns.Add(new TriplePattern(root,
                 new NodeMatchPattern(nodeFactory.CreateUriNode(new Uri(RdfSpecsHelper.RdfType))),
@@ -185,46 +192,70 @@
                         filterTriplePatterns.Add(new TriplePattern(root,
                                 new NodeMatchPattern(nodeFactory.CreateUriNode(new Uri(properties[property.Property.Name].Item2.AbsoluteUri))),
                                 new NodeMatchPattern(nodeFactory.CreateLiteralNode(constant.LiteralText.Replace("'", "")))));
-                        //Debug.WriteLine("Property: " + property.Property.Name);
-                        //Debug.WriteLine("Operator: " + binaryOperator.OperatorKind);
-                        //Debug.WriteLine("Value: " + constant.LiteralText);
                     }
                 }
             }
 
+            if (navProp != null)
+            {
+                var navNode = new VariablePattern($"?{navProp}");
+                var navPropUri = BaseController.GetUri(navPropType);
+                predicateTriplePatterns.Add(new TriplePattern(root,
+                    new NodeMatchPattern(nodeFactory.CreateUriNode(new Uri(properties[navProp].Item2.AbsoluteUri))),
+                    navNode));
+
+                navTriplePatterns.Add(new TriplePattern(navNode,
+                new NodeMatchPattern(nodeFactory.CreateUriNode(new Uri(RdfSpecsHelper.RdfType))),
+                new NodeMatchPattern(nodeFactory.CreateUriNode(navPropUri))));
+            }
+
+            List<ITriplePattern> subQueryTriplePatterns = new List<ITriplePattern>();
             if (options.Top != null)
             {
-                Debug.WriteLine("Top: " + options.Top.Value);
+                IQueryBuilder subqueryBuilder = null;
+                if (navProp != null)
+                    subqueryBuilder = QueryBuilder.Select(new string[] { $"?{navProp}" }).Where(navTriplePatterns.ToArray()).Limit(options.Top.Value);
+                else
+                    subqueryBuilder = QueryBuilder.Select(new string[] { "Id" }).Where(classTriplePatterns.ToArray()).Limit(options.Top.Value);
+
+                subQueryTriplePatterns.Add(new SubQueryPattern(subqueryBuilder.BuildQuery()));
             }
 
             if (options.Skip != null)
             {
-                Debug.WriteLine("Skip: " + options.Skip.Value);
+                IQueryBuilder subqueryBuilder = null;
+                if (navProp != null)
+                    subqueryBuilder = QueryBuilder.Select(new string[] { $"?{navProp}" }).Where(navTriplePatterns.ToArray()).Offset(options.Skip.Value);
+                else
+                    subqueryBuilder = QueryBuilder.Select(new string[] { "Id" }).Where(classTriplePatterns.ToArray()).Offset(options.Skip.Value);
+
+                subQueryTriplePatterns.Add(new SubQueryPattern(subqueryBuilder.BuildQuery()));
             }
+
+            IQueryBuilder queryBuilder = null;
+            if (navProp == null)
+                queryBuilder = QueryBuilder
+                    .Construct(q => q.Where(classTriplePatterns.Concat(predicateTriplePatterns).ToArray()))
+                    .Where(classTriplePatterns.Concat(filterTriplePatterns).Concat(subQueryTriplePatterns).ToArray());
+            else
+                queryBuilder = QueryBuilder
+                    .Construct(q => q.Where(navTriplePatterns.Concat(predicateTriplePatterns).ToArray()))
+                    .Where(classTriplePatterns.Concat(filterTriplePatterns).Concat(navTriplePatterns).Concat(subQueryTriplePatterns).ToArray());
+
+            foreach (TriplePattern tp in predicateTriplePatterns)
+                queryBuilder.Optional(gp => gp.Where(tp));
 
             if (options.OrderBy != null && options.OrderBy.OrderByClause != null)
             {
                 foreach (var node in options.OrderBy.OrderByNodes)
                 {
                     var typedNode = node as OrderByPropertyNode;
-                    Debug.WriteLine("Property: " + typedNode.Property.Name);
-                    Debug.WriteLine("Direction: " + typedNode.OrderByClause.Direction);
+                    if (typedNode.OrderByClause.Direction == OrderByDirection.Ascending)
+                        queryBuilder.OrderBy(typedNode.Property.Name);
+                    else
+                        queryBuilder.OrderByDescending(typedNode.Property.Name);
                 }
             }
-
-            if (navProp != null)
-            {
-                predicateTriplePatterns.Add(new TriplePattern(root,
-                    new NodeMatchPattern(nodeFactory.CreateUriNode(new Uri(properties[navProp].Item2.AbsoluteUri))),
-                    new VariablePattern($"?{navProp}")));
-            }
-
-            IQueryBuilder queryBuilder = QueryBuilder
-                .Construct(q => q.Where(classTriplePatterns.Concat(predicateTriplePatterns).ToArray()))
-                .Where(classTriplePatterns.Concat(filterTriplePatterns).ToArray());
-
-            foreach (TriplePattern tp in predicateTriplePatterns)
-                queryBuilder.Optional(gp => gp.Where(tp));
 
             return queryBuilder.BuildQuery().ToString();
         }
