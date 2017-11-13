@@ -24,6 +24,8 @@
     using VDS.RDF;
     using VDS.RDF.Parsing;
     using VDS.RDF.Query.Builder;
+    using VDS.RDF.Query.Expressions;
+    using VDS.RDF.Query.Expressions.Functions.Arq;
     using VDS.RDF.Query.Patterns;
     using VDS.RDF.Storage;
 
@@ -132,11 +134,15 @@
                 root = new NodeMatchPattern(nodeFactory.CreateUriNode(new Uri(NamespaceUri, idKey)));
             //Type entityType = BaseController.GetType(edmEntityType);
             Dictionary <string, Tuple<Type, Uri>> properties = GetAllProperties(edmEntityType);
+            Dictionary<string, Tuple<Type, Uri>> navProperties = null;
+            if (navPropType != null)
+                navProperties = GetAllProperties(navPropType);
 
             List<ITriplePattern> classTriplePatterns = new List<ITriplePattern>();
             List<ITriplePattern> predicateTriplePatterns = new List<ITriplePattern>();
             List<ITriplePattern> filterTriplePatterns = new List<ITriplePattern>();
             List<ITriplePattern> navTriplePatterns = new List<ITriplePattern>();
+            List<ITriplePattern> classNavTriplePatterns = new List<ITriplePattern>();
 
             classTriplePatterns.Add(new TriplePattern(root,
                 new NodeMatchPattern(nodeFactory.CreateUriNode(new Uri(RdfSpecsHelper.RdfType))),
@@ -156,7 +162,15 @@
                             if (propName == "Id")
                                 continue;
                             //foreach (string predicate in node.Item2)
-                            predicateTriplePatterns.Add(new TriplePattern(root,
+                            if (navProp != null)
+                            {
+                                var navNode = new VariablePattern($"?{navProp}");
+                                predicateTriplePatterns.Add(new TriplePattern(navNode,
+                                new NodeMatchPattern(nodeFactory.CreateUriNode(new Uri(navProperties[propName].Item2.AbsoluteUri))),
+                                new VariablePattern($"?{propName}")));
+                            }
+                            else
+                                predicateTriplePatterns.Add(new TriplePattern(root,
                                 new NodeMatchPattern(nodeFactory.CreateUriNode(new Uri(properties[propName].Item2.AbsoluteUri))),
                                 new VariablePattern($"?{propName}")));
                         }
@@ -166,15 +180,27 @@
             }
             else
             {
-                var structProperties = edmEntityType.StructuralProperties();
+                IEnumerable<IEdmStructuralProperty> structProperties = null;
+                if (navProp != null)
+                    structProperties = navPropType.StructuralProperties();
+                else
+                    structProperties = edmEntityType.StructuralProperties();
                 foreach (var propName in structProperties)
                 {
                     if (propName.Name != "Id")
                     {
                         var propertyUri = BaseController.GetPropertyUri(propName);
-                        predicateTriplePatterns.Add(new TriplePattern(root,
-                                    new NodeMatchPattern(nodeFactory.CreateUriNode(propertyUri)),
-                                    new VariablePattern($"?{propName.Name}")));
+                        if (navProp != null)
+                        {
+                            var navNode = new VariablePattern($"?{navProp}");
+                            predicateTriplePatterns.Add(new TriplePattern(navNode,
+                            new NodeMatchPattern(nodeFactory.CreateUriNode(propertyUri)),
+                                new VariablePattern($"?{propName.Name}")));
+                        }
+                        else
+                            predicateTriplePatterns.Add(new TriplePattern(root,
+                                new NodeMatchPattern(nodeFactory.CreateUriNode(propertyUri)),
+                                new VariablePattern($"?{propName.Name}")));
                     }
                 }
             }
@@ -189,9 +215,23 @@
 
                     if (property != null && property.Property != null && constant != null && constant.Value != null)
                     {
-                        filterTriplePatterns.Add(new TriplePattern(root,
-                                new NodeMatchPattern(nodeFactory.CreateUriNode(new Uri(properties[property.Property.Name].Item2.AbsoluteUri))),
-                                new NodeMatchPattern(nodeFactory.CreateLiteralNode(constant.LiteralText.Replace("'", "")))));
+                        if (binaryOperator.OperatorKind == BinaryOperatorKind.Equal)
+                        {
+                            if (navProp != null)
+                            {
+                                var navNode = new VariablePattern($"?{navProp}");
+                                predicateTriplePatterns.Add(new TriplePattern(navNode,
+                                    new NodeMatchPattern(nodeFactory.CreateUriNode(new Uri(navProperties[property.Property.Name].Item2.AbsoluteUri))),
+                                    new NodeMatchPattern(nodeFactory.CreateLiteralNode(constant.LiteralText.Replace("'", "")))));
+                            }
+                            else
+                                filterTriplePatterns.Add(new TriplePattern(root,
+                                    new NodeMatchPattern(nodeFactory.CreateUriNode(new Uri(properties[property.Property.Name].Item2.AbsoluteUri))),
+                                    new NodeMatchPattern(nodeFactory.CreateLiteralNode(constant.LiteralText.Replace("'", "")))));
+                        }
+                        else if (binaryOperator.OperatorKind == BinaryOperatorKind.NotEqual)
+                        {
+                        }
                     }
                 }
             }
@@ -200,7 +240,7 @@
             {
                 var navNode = new VariablePattern($"?{navProp}");
                 var navPropUri = BaseController.GetUri(navPropType);
-                predicateTriplePatterns.Add(new TriplePattern(root,
+                classNavTriplePatterns.Add(new TriplePattern(root,
                     new NodeMatchPattern(nodeFactory.CreateUriNode(new Uri(properties[navProp].Item2.AbsoluteUri))),
                     navNode));
 
@@ -235,12 +275,12 @@
             IQueryBuilder queryBuilder = null;
             if (navProp == null)
                 queryBuilder = QueryBuilder
-                    .Construct(q => q.Where(classTriplePatterns.Concat(predicateTriplePatterns).ToArray()))
-                    .Where(classTriplePatterns.Concat(filterTriplePatterns).Concat(subQueryTriplePatterns).ToArray());
+                    .Construct(q => q.Where(classTriplePatterns.Concat(predicateTriplePatterns).ToArray()));
             else
                 queryBuilder = QueryBuilder
-                    .Construct(q => q.Where(navTriplePatterns.Concat(predicateTriplePatterns).ToArray()))
-                    .Where(classTriplePatterns.Concat(filterTriplePatterns).Concat(navTriplePatterns).Concat(subQueryTriplePatterns).ToArray());
+                    .Construct(q => q.Where(navTriplePatterns.Concat(predicateTriplePatterns).ToArray()));
+
+            queryBuilder.Where(classTriplePatterns.Concat(filterTriplePatterns).Concat(navTriplePatterns).Concat(classNavTriplePatterns).Concat(subQueryTriplePatterns).ToArray());
 
             foreach (TriplePattern tp in predicateTriplePatterns)
                 queryBuilder.Optional(gp => gp.Where(tp));
@@ -256,7 +296,6 @@
                         queryBuilder.OrderByDescending(typedNode.Property.Name);
                 }
             }
-
             return queryBuilder.BuildQuery().ToString();
         }
 
