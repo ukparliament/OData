@@ -24,6 +24,8 @@
     using VDS.RDF;
     using VDS.RDF.Parsing;
     using VDS.RDF.Query.Builder;
+    using VDS.RDF.Query.Filters;
+    using VDS.RDF.Query.Builder.Expressions;
     using VDS.RDF.Query.Expressions;
     using VDS.RDF.Query.Expressions.Functions.Arq;
     using VDS.RDF.Query.Patterns;
@@ -103,51 +105,59 @@
             var edmType = path.EdmType.AsElementType() as EdmEntityType;
             Type entityType = BaseController.GetType(edmType);
             ODataModelBuilder modelBuilder = new Builder();
-            ODataQueryContext context = new ODataQueryContext(modelBuilder.GetEdmModel(), entityType, path);
+            var model = modelBuilder.GetEdmModel();
+            ODataQueryContext context = new ODataQueryContext(model, entityType, path);
             return new ODataQueryOptions(context, request);
         }
 
         private static string BuildSparql(ODataQueryOptions options)
         {
-            var edmEntityType = options.Context.Path.Segments[0].EdmType.AsElementType() as EdmEntityType;
-            string idKey = null;
+            var entityType = options.Context.Path.Segments[0].EdmType.AsElementType() as EdmEntityType;
+            string entityId = null;
             string navProp = null;
-            EdmEntityType navPropType = null;
-            if (options.Context.Path.Segments.Count > 1)
-            {
-                var keys = (options.Context.Path.Segments[1] as KeySegment).Keys.ToList();
-                if (keys.Count() > 0)
-                {
-                    idKey = keys[0].Value.ToString();
-                }
-            }
-            if (options.Context.Path.Segments.Count > 2)
-            {
-                navProp = (options.Context.Path.Segments[2] as NavigationPropertySegment).NavigationProperty.Name;
-                navPropType = (options.Context.Path.Segments[2] as NavigationPropertySegment).EdmType.AsElementType() as EdmEntityType;
-            }
-
-            NodeFactory nodeFactory = new NodeFactory();
-            //int i = 0;
-            PatternItem root = new VariablePattern("Id"); //new VariablePattern($"?s{i}");
-            if (idKey != null)
-                root = new NodeMatchPattern(nodeFactory.CreateUriNode(new Uri(NamespaceUri, idKey)));
-            //Type entityType = BaseController.GetType(edmEntityType);
-            Dictionary <string, Tuple<Type, Uri>> properties = GetAllProperties(edmEntityType);
+            EdmEntityType navEntityType = null;
+            Dictionary<string, Tuple<Type, Uri>> properties = GetAllProperties(entityType);
             Dictionary<string, Tuple<Type, Uri>> navProperties = null;
-            if (navPropType != null)
-                navProperties = GetAllProperties(navPropType);
-
+            NodeFactory nodeFactory = new NodeFactory();
+            PatternItem root = new VariablePattern("Id");
             List<ITriplePattern> classTriplePatterns = new List<ITriplePattern>();
             List<ITriplePattern> predicateTriplePatterns = new List<ITriplePattern>();
             List<ITriplePattern> filterTriplePatterns = new List<ITriplePattern>();
             List<ITriplePattern> navTriplePatterns = new List<ITriplePattern>();
             List<ITriplePattern> classNavTriplePatterns = new List<ITriplePattern>();
+            List<ITriplePattern> minusTriplePatterns = new List<ITriplePattern>();
+
+            if (options.Context.Path.Segments.Count > 1)
+            {
+                var keys = (options.Context.Path.Segments[1] as KeySegment).Keys.ToList();
+                if (keys.Count() > 0)
+                {
+                    entityId = keys[0].Value.ToString();
+                    root = new NodeMatchPattern(nodeFactory.CreateUriNode(new Uri(NamespaceUri, entityId)));
+                }
+            }
 
             classTriplePatterns.Add(new TriplePattern(root,
                 new NodeMatchPattern(nodeFactory.CreateUriNode(new Uri(RdfSpecsHelper.RdfType))),
                 new NodeMatchPattern(nodeFactory.CreateUriNode(new Uri(properties["Id"].Item2.AbsoluteUri)))));
 
+            if (options.Context.Path.Segments.Count > 2)
+            {
+                navProp = (options.Context.Path.Segments[2] as NavigationPropertySegment).NavigationProperty.Name;
+                navEntityType = (options.Context.Path.Segments[2] as NavigationPropertySegment).EdmType.AsElementType() as EdmEntityType;
+                navProperties = GetAllProperties(navEntityType);
+
+                classNavTriplePatterns.Add(new TriplePattern(root,
+                    new NodeMatchPattern(nodeFactory.CreateUriNode(new Uri(properties[navProp].Item2.AbsoluteUri))),
+                    new VariablePattern($"?{navProp}")));
+
+                navTriplePatterns.Add(new TriplePattern(new VariablePattern($"?{navProp}"),
+                    new NodeMatchPattern(nodeFactory.CreateUriNode(new Uri(RdfSpecsHelper.RdfType))),
+                    new NodeMatchPattern(nodeFactory.CreateUriNode(GetUri(navEntityType)))));
+            }
+
+            /*Select options*/
+            List<IEdmStructuralProperty> propList = new List<IEdmStructuralProperty>();
             if (options.SelectExpand != null && options.SelectExpand.SelectExpandClause != null)
             {
                 foreach (var item in options.SelectExpand.SelectExpandClause.SelectedItems)
@@ -157,54 +167,36 @@
                     {
                         var segment = selectItem.SelectedPath.FirstSegment as PropertySegment;
                         if (segment != null)
-                        {
-                            var propName = segment.Property.Name;
-                            if (propName == "Id")
-                                continue;
-                            //foreach (string predicate in node.Item2)
-                            if (navProp != null)
-                            {
-                                var navNode = new VariablePattern($"?{navProp}");
-                                predicateTriplePatterns.Add(new TriplePattern(navNode,
-                                new NodeMatchPattern(nodeFactory.CreateUriNode(new Uri(navProperties[propName].Item2.AbsoluteUri))),
-                                new VariablePattern($"?{propName}")));
-                            }
-                            else
-                                predicateTriplePatterns.Add(new TriplePattern(root,
-                                new NodeMatchPattern(nodeFactory.CreateUriNode(new Uri(properties[propName].Item2.AbsoluteUri))),
-                                new VariablePattern($"?{propName}")));
-                        }
+                            propList.Add (segment.Property);
                     }
                 }
-                //i++;
             }
             else
             {
-                IEnumerable<IEdmStructuralProperty> structProperties = null;
                 if (navProp != null)
-                    structProperties = navPropType.StructuralProperties();
+                    propList = navEntityType.StructuralProperties().ToList();
                 else
-                    structProperties = edmEntityType.StructuralProperties();
-                foreach (var propName in structProperties)
-                {
-                    if (propName.Name != "Id")
-                    {
-                        var propertyUri = BaseController.GetPropertyUri(propName);
-                        if (navProp != null)
-                        {
-                            var navNode = new VariablePattern($"?{navProp}");
-                            predicateTriplePatterns.Add(new TriplePattern(navNode,
-                            new NodeMatchPattern(nodeFactory.CreateUriNode(propertyUri)),
-                                new VariablePattern($"?{propName.Name}")));
-                        }
-                        else
-                            predicateTriplePatterns.Add(new TriplePattern(root,
-                                new NodeMatchPattern(nodeFactory.CreateUriNode(propertyUri)),
-                                new VariablePattern($"?{propName.Name}")));
-                    }
-                }
+                    propList = entityType.StructuralProperties().ToList();
             }
 
+            foreach (var prop in propList)
+            {
+                if (prop.Name == "Id")
+                    continue;
+
+                if (navProp != null)
+                {
+                    predicateTriplePatterns.Add(new TriplePattern(new VariablePattern($"?{navProp}"),
+                    new NodeMatchPattern(nodeFactory.CreateUriNode(new Uri(navProperties[prop.Name].Item2.AbsoluteUri))),
+                    new VariablePattern($"?{prop.Name}")));
+                }
+                else
+                    predicateTriplePatterns.Add(new TriplePattern(root,
+                    new NodeMatchPattern(nodeFactory.CreateUriNode(new Uri(properties[prop.Name].Item2.AbsoluteUri))),
+                    new VariablePattern($"?{prop.Name}")));
+            }
+
+            /*Filter options*/
             if (options.Filter != null && options.Filter.FilterClause != null)
             {
                 var binaryOperator = options.Filter.FilterClause.Expression as BinaryOperatorNode;
@@ -212,63 +204,52 @@
                 {
                     var property = binaryOperator.Left as SingleValuePropertyAccessNode ?? binaryOperator.Right as SingleValuePropertyAccessNode;
                     var constant = binaryOperator.Left as ConstantNode ?? binaryOperator.Right as ConstantNode;
+                    var convert = binaryOperator.Left as ConvertNode ?? binaryOperator.Right as ConvertNode;
 
-                    if (property != null && property.Property != null && constant != null && constant.Value != null)
+                    if (property != null && property.Property != null)
                     {
-                        if (binaryOperator.OperatorKind == BinaryOperatorKind.Equal)
+                        if (convert != null)
                         {
-                            if (navProp != null)
+                            var t = convert.TypeReference;
+                            if (t.Definition.GetType() == typeof(DateTimeOffset))
                             {
-                                var navNode = new VariablePattern($"?{navProp}");
-                                predicateTriplePatterns.Add(new TriplePattern(navNode,
-                                    new NodeMatchPattern(nodeFactory.CreateUriNode(new Uri(navProperties[property.Property.Name].Item2.AbsoluteUri))),
-                                    new NodeMatchPattern(nodeFactory.CreateLiteralNode(constant.LiteralText.Replace("'", "")))));
+                                //not done yet.
                             }
-                            else
-                                filterTriplePatterns.Add(new TriplePattern(root,
-                                    new NodeMatchPattern(nodeFactory.CreateUriNode(new Uri(properties[property.Property.Name].Item2.AbsoluteUri))),
-                                    new NodeMatchPattern(nodeFactory.CreateLiteralNode(constant.LiteralText.Replace("'", "")))));
                         }
-                        else if (binaryOperator.OperatorKind == BinaryOperatorKind.NotEqual)
+                        else if (constant != null && constant.Value != null)
                         {
+                            TriplePattern tp = null;
+                            if (navProp != null)
+                                tp = new TriplePattern(new VariablePattern($"?{navProp}"),
+                                    new NodeMatchPattern(nodeFactory.CreateUriNode(new Uri(navProperties[property.Property.Name].Item2.AbsoluteUri))),
+                                    new NodeMatchPattern(nodeFactory.CreateLiteralNode(constant.LiteralText.Replace("'", ""))));
+                            else
+                                tp = new TriplePattern(root,
+                                    new NodeMatchPattern(nodeFactory.CreateUriNode(new Uri(properties[property.Property.Name].Item2.AbsoluteUri))),
+                                    new NodeMatchPattern(nodeFactory.CreateLiteralNode(constant.LiteralText.Replace("'", ""))));
+
+                            if (binaryOperator.OperatorKind == BinaryOperatorKind.Equal)
+                                filterTriplePatterns.Add(tp);
+                            else if (binaryOperator.OperatorKind == BinaryOperatorKind.NotEqual)
+                                minusTriplePatterns.Add(tp);
                         }
                     }
                 }
             }
 
-            if (navProp != null)
-            {
-                var navNode = new VariablePattern($"?{navProp}");
-                var navPropUri = BaseController.GetUri(navPropType);
-                classNavTriplePatterns.Add(new TriplePattern(root,
-                    new NodeMatchPattern(nodeFactory.CreateUriNode(new Uri(properties[navProp].Item2.AbsoluteUri))),
-                    navNode));
-
-                navTriplePatterns.Add(new TriplePattern(navNode,
-                new NodeMatchPattern(nodeFactory.CreateUriNode(new Uri(RdfSpecsHelper.RdfType))),
-                new NodeMatchPattern(nodeFactory.CreateUriNode(navPropUri))));
-            }
-
+            /*Skip and Top options*/
             List<ITriplePattern> subQueryTriplePatterns = new List<ITriplePattern>();
-            if (options.Top != null)
+            if (options.Skip != null || options.Top != null)
             {
                 IQueryBuilder subqueryBuilder = null;
                 if (navProp != null)
-                    subqueryBuilder = QueryBuilder.Select(new string[] { $"?{navProp}" }).Where(navTriplePatterns.ToArray()).Limit(options.Top.Value);
+                    subqueryBuilder = QueryBuilder.Select(new string[] { $"?{navProp}" }).Where(navTriplePatterns.ToArray());
                 else
-                    subqueryBuilder = QueryBuilder.Select(new string[] { "Id" }).Where(classTriplePatterns.ToArray()).Limit(options.Top.Value);
-
-                subQueryTriplePatterns.Add(new SubQueryPattern(subqueryBuilder.BuildQuery()));
-            }
-
-            if (options.Skip != null)
-            {
-                IQueryBuilder subqueryBuilder = null;
-                if (navProp != null)
-                    subqueryBuilder = QueryBuilder.Select(new string[] { $"?{navProp}" }).Where(navTriplePatterns.ToArray()).Offset(options.Skip.Value);
-                else
-                    subqueryBuilder = QueryBuilder.Select(new string[] { "Id" }).Where(classTriplePatterns.ToArray()).Offset(options.Skip.Value);
-
+                    subqueryBuilder = QueryBuilder.Select(new string[] { "Id" }).Where(classTriplePatterns.ToArray());
+                if (options.Skip != null)
+                    subqueryBuilder = subqueryBuilder.Offset(options.Skip.Value);
+                if (options.Top != null)
+                    subqueryBuilder = subqueryBuilder.Limit(options.Top.Value);
                 subQueryTriplePatterns.Add(new SubQueryPattern(subqueryBuilder.BuildQuery()));
             }
 
@@ -280,11 +261,15 @@
                 queryBuilder = QueryBuilder
                     .Construct(q => q.Where(navTriplePatterns.Concat(predicateTriplePatterns).ToArray()));
 
-            queryBuilder.Where(classTriplePatterns.Concat(filterTriplePatterns).Concat(navTriplePatterns).Concat(classNavTriplePatterns).Concat(subQueryTriplePatterns).ToArray());
+            queryBuilder.Where(classTriplePatterns.Concat(filterTriplePatterns).Concat(navTriplePatterns).
+                Concat(classNavTriplePatterns).Concat(subQueryTriplePatterns).ToArray());
+
+            queryBuilder.Minus(q => q.Where(minusTriplePatterns.ToArray()));
 
             foreach (TriplePattern tp in predicateTriplePatterns)
                 queryBuilder.Optional(gp => gp.Where(tp));
 
+            /*OrderBy options*/
             if (options.OrderBy != null && options.OrderBy.OrderByClause != null)
             {
                 foreach (var node in options.OrderBy.OrderByNodes)
@@ -298,6 +283,7 @@
             }
             return queryBuilder.BuildQuery().ToString();
         }
+
 
         public static object Execute(ODataQueryOptions options) //Expression expression)
         {
