@@ -30,6 +30,16 @@
     using VDS.RDF.Query.Expressions.Functions.Arq;
     using VDS.RDF.Query.Patterns;
     using VDS.RDF.Storage;
+    using VDS.RDF.Query.Expressions.Functions.Sparql.Boolean;
+    using VDS.RDF.Query.Expressions.Functions.Sparql.DateTime;
+    using VDS.RDF.Query.Expressions.Functions.Sparql;
+    using VDS.RDF.Query.Expressions.Functions.Sparql.Constructor;
+    using VDS.RDF.Query.Expressions.Functions.Sparql.Numeric;
+    using VDS.RDF.Query.Expressions.Functions.Sparql.Set;
+    using VDS.RDF.Query.Expressions.Functions.Sparql.String;
+    using VDS.RDF.Query.Expressions.Comparison;
+    using VDS.RDF.Query.Expressions.Primary;
+    using VDS.RDF.Query.Algebra;
 
     public class BaseController : ODataController
     {
@@ -110,6 +120,97 @@
             return new ODataQueryOptions(context, request);
         }
 
+        private static ISparqlExpression BuildSparqlFilter(ODataQueryOptions options)
+        {
+            ISparqlExpression filterExp = null;
+            NodeFactory nodeFactory = new NodeFactory();
+            if (options.Filter != null && options.Filter.FilterClause != null)
+            {
+                var binaryOperator = options.Filter.FilterClause.Expression as BinaryOperatorNode;
+                var functionOperator = options.Filter.FilterClause.Expression as SingleValueFunctionCallNode;
+                if (functionOperator != null)
+                {
+                    ISparqlExpression exp = null;
+                    VariableTerm valueTerm;
+                    ConstantTerm constantTerm = null;
+                    ILiteralNode literalNode = null;
+                    var funcName = functionOperator.Name;
+                    if (funcName == "contains" || funcName == "endswith" || funcName == "startswith")
+                    {
+                        var property = functionOperator.Parameters.ElementAt(0) as SingleValuePropertyAccessNode;
+                        var constant = functionOperator.Parameters.ElementAt(1) as ConstantNode;
+                        if (property != null && property.Property != null)
+                        {
+                            literalNode = nodeFactory.CreateLiteralNode(constant.LiteralText.Replace("'", ""));
+                            valueTerm = new VariableTerm($"?{property.Property.Name}");
+                            constantTerm = new ConstantTerm(literalNode);
+                            if (funcName == "contains")
+                                exp = new ContainsFunction(valueTerm, constantTerm);
+                            else if (funcName == "endswith")
+                                exp = new StrEndsFunction(valueTerm, constantTerm);
+                            else if (funcName == "startswith")
+                                exp = new StrStartsFunction(valueTerm, constantTerm);
+                        }
+                    }
+                    if (exp != null)
+                        filterExp = (new UnaryExpressionFilter(exp)).Expression;
+                }
+                else if (binaryOperator != null)
+                {
+                    var property = binaryOperator.Left as SingleValuePropertyAccessNode ?? binaryOperator.Right as SingleValuePropertyAccessNode;
+                    var constant = binaryOperator.Left as ConstantNode ?? binaryOperator.Right as ConstantNode;
+                    var convert = binaryOperator.Left as ConvertNode ?? binaryOperator.Right as ConvertNode;
+
+                    if (property != null && property.Property != null)
+                    {
+                        ISparqlExpression exp = null;
+                        VariableTerm valueTerm;
+                        ConstantTerm constantTerm = null;
+                        ILiteralNode literalNode = null;
+
+                        if (convert != null)
+                        {
+                            var asConstant = convert.Source as ConstantNode;
+                            switch ((convert.TypeReference.Definition as IEdmPrimitiveType).PrimitiveKind)
+                            {
+                                case EdmPrimitiveTypeKind.DateTimeOffset:
+                                    literalNode = LiteralExtensions.ToLiteralDate((asConstant.Value as DateTimeOffset?).GetValueOrDefault(), nodeFactory);
+                                    break;
+                                case EdmPrimitiveTypeKind.Int32:
+                                    literalNode = LiteralExtensions.ToLiteral((asConstant.Value as Int32?).GetValueOrDefault(), nodeFactory);
+                                    break;
+                                default:
+                                    break;
+                            }
+                        }
+                        else if (constant != null && constant.Value != null)
+                            literalNode = nodeFactory.CreateLiteralNode(constant.LiteralText.Replace("'", ""));
+
+                        if (literalNode != null)
+                        {
+                            valueTerm = new VariableTerm($"?{property.Property.Name}");
+                            constantTerm = new ConstantTerm(literalNode);
+                            if (binaryOperator.OperatorKind == BinaryOperatorKind.Equal)
+                                exp = new EqualsExpression(valueTerm, constantTerm);
+                            else if (binaryOperator.OperatorKind == BinaryOperatorKind.NotEqual)
+                                exp = new NotEqualsExpression(valueTerm, constantTerm);
+                            else if (binaryOperator.OperatorKind == BinaryOperatorKind.GreaterThan)
+                                exp = new GreaterThanExpression(valueTerm, constantTerm);
+                            else if (binaryOperator.OperatorKind == BinaryOperatorKind.GreaterThanOrEqual)
+                                exp = new GreaterThanOrEqualToExpression(valueTerm, constantTerm);
+                            else if (binaryOperator.OperatorKind == BinaryOperatorKind.LessThan)
+                                exp = new LessThanExpression(valueTerm, constantTerm);
+                            else if (binaryOperator.OperatorKind == BinaryOperatorKind.LessThanOrEqual)
+                                exp = new LessThanOrEqualToExpression(valueTerm, constantTerm);
+
+                            filterExp = (new UnaryExpressionFilter(exp)).Expression;
+                        }
+                    }
+                }
+            }
+            return filterExp;
+        }
+
         private static string BuildSparql(ODataQueryOptions options)
         {
             var entityType = options.Context.Path.Segments[0].EdmType.AsElementType() as EdmEntityType;
@@ -122,10 +223,8 @@
             PatternItem root = new VariablePattern("Id");
             List<ITriplePattern> classTriplePatterns = new List<ITriplePattern>();
             List<ITriplePattern> predicateTriplePatterns = new List<ITriplePattern>();
-            List<ITriplePattern> filterTriplePatterns = new List<ITriplePattern>();
             List<ITriplePattern> navTriplePatterns = new List<ITriplePattern>();
             List<ITriplePattern> classNavTriplePatterns = new List<ITriplePattern>();
-            List<ITriplePattern> minusTriplePatterns = new List<ITriplePattern>();
 
             if (options.Context.Path.Segments.Count > 1)
             {
@@ -197,45 +296,7 @@
             }
 
             /*Filter options*/
-            if (options.Filter != null && options.Filter.FilterClause != null)
-            {
-                var binaryOperator = options.Filter.FilterClause.Expression as BinaryOperatorNode;
-                if (binaryOperator != null)
-                {
-                    var property = binaryOperator.Left as SingleValuePropertyAccessNode ?? binaryOperator.Right as SingleValuePropertyAccessNode;
-                    var constant = binaryOperator.Left as ConstantNode ?? binaryOperator.Right as ConstantNode;
-                    var convert = binaryOperator.Left as ConvertNode ?? binaryOperator.Right as ConvertNode;
-
-                    if (property != null && property.Property != null)
-                    {
-                        if (convert != null)
-                        {
-                            var t = convert.TypeReference;
-                            if (t.Definition.GetType() == typeof(DateTimeOffset))
-                            {
-                                //not done yet.
-                            }
-                        }
-                        else if (constant != null && constant.Value != null)
-                        {
-                            TriplePattern tp = null;
-                            if (navProp != null)
-                                tp = new TriplePattern(new VariablePattern($"?{navProp}"),
-                                    new NodeMatchPattern(nodeFactory.CreateUriNode(new Uri(navProperties[property.Property.Name].Item2.AbsoluteUri))),
-                                    new NodeMatchPattern(nodeFactory.CreateLiteralNode(constant.LiteralText.Replace("'", ""))));
-                            else
-                                tp = new TriplePattern(root,
-                                    new NodeMatchPattern(nodeFactory.CreateUriNode(new Uri(properties[property.Property.Name].Item2.AbsoluteUri))),
-                                    new NodeMatchPattern(nodeFactory.CreateLiteralNode(constant.LiteralText.Replace("'", ""))));
-
-                            if (binaryOperator.OperatorKind == BinaryOperatorKind.Equal)
-                                filterTriplePatterns.Add(tp);
-                            else if (binaryOperator.OperatorKind == BinaryOperatorKind.NotEqual)
-                                minusTriplePatterns.Add(tp);
-                        }
-                    }
-                }
-            }
+            ISparqlExpression filterExp = BuildSparqlFilter(options);
 
             /*Skip and Top options*/
             List<ITriplePattern> subQueryTriplePatterns = new List<ITriplePattern>();
@@ -261,13 +322,14 @@
                 queryBuilder = QueryBuilder
                     .Construct(q => q.Where(navTriplePatterns.Concat(predicateTriplePatterns).ToArray()));
 
-            queryBuilder.Where(classTriplePatterns.Concat(filterTriplePatterns).Concat(navTriplePatterns).
+            queryBuilder.Where(classTriplePatterns.Concat(navTriplePatterns).
                 Concat(classNavTriplePatterns).Concat(subQueryTriplePatterns).ToArray());
-
-            queryBuilder.Minus(q => q.Where(minusTriplePatterns.ToArray()));
 
             foreach (TriplePattern tp in predicateTriplePatterns)
                 queryBuilder.Optional(gp => gp.Where(tp));
+
+            if (filterExp != null)
+                queryBuilder.Filter(filterExp);
 
             /*OrderBy options*/
             if (options.OrderBy != null && options.OrderBy.OrderByClause != null)

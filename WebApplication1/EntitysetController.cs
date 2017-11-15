@@ -21,6 +21,10 @@
         //http://localhost:2933/House('1AFu55Hs')/HouseHasHouseSeat?$top=2
         //http://localhost:2933/House('WkUWUBMx')/HouseHasHouseIncumbency?$orderby=ParliamentaryIncumbencyStartDate%20desc&$top=2
         //http://localhost:2933/Person?$top=100&$orderby=PersonGivenName,PersonFamilyName%20desc
+        //http://localhost:2933/Incumbency?$filter=IncumbencyStartDate%20ge%202017-11-09T00:00:00Z
+        //http://localhost:2933/House('WkUWUBMx')/HouseHasHouseIncumbency?$filter=ParliamentaryIncumbencyStartDate%20gt%201983-11-17T00:00:00Z
+        //http://localhost:2933/Person?$filter=contains(PersonGivenName,%27David%27)
+        //http://localhost:2933/House('1AFu55Hs')?$filter=contains(HouseName,%20%27Ho%27)
 
         [HttpGet]
         //[EnableQuery(AllowedQueryOptions = System.Web.OData.Query.AllowedQueryOptions.Select |
