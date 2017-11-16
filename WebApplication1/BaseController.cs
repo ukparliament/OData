@@ -39,6 +39,8 @@
     using VDS.RDF.Query.Expressions.Functions.Sparql.String;
     using VDS.RDF.Query.Expressions.Comparison;
     using VDS.RDF.Query.Expressions.Primary;
+    using VDS.RDF.Query.Expressions.Conditional;
+    using VDS.RDF.Query.Expressions.Arithmetic;
     using VDS.RDF.Query.Algebra;
 
     public class BaseController : ODataController
@@ -120,95 +122,178 @@
             return new ODataQueryOptions(context, request);
         }
 
-        private static ISparqlExpression BuildSparqlFilter(ODataQueryOptions options)
+        private static ILiteralNode CreateLiteralNode(ConstantNode node)
         {
-            ISparqlExpression filterExp = null;
             NodeFactory nodeFactory = new NodeFactory();
-            if (options.Filter != null && options.Filter.FilterClause != null)
+            switch ((node.TypeReference.Definition as IEdmPrimitiveType).PrimitiveKind)
             {
-                var binaryOperator = options.Filter.FilterClause.Expression as BinaryOperatorNode;
-                var functionOperator = options.Filter.FilterClause.Expression as SingleValueFunctionCallNode;
-                if (functionOperator != null)
+                case EdmPrimitiveTypeKind.DateTimeOffset:
+                    return LiteralExtensions.ToLiteralDate((node.Value as DateTimeOffset?).GetValueOrDefault(), nodeFactory);
+                case EdmPrimitiveTypeKind.Int32:
+                    return LiteralExtensions.ToLiteral((node.Value as Int32?).GetValueOrDefault(), nodeFactory);
+                default:
+                    return nodeFactory.CreateLiteralNode(node.LiteralText.Replace("'", ""));
+            }
+        }
+
+        private static ISparqlExpression BuildSparqlFilter(SingleValueNode filterNode)
+        {
+            NodeFactory nodeFactory = new NodeFactory();
+
+            if (filterNode.GetType() == typeof(SingleValueFunctionCallNode))
+            {
+                var functionOperator = filterNode as SingleValueFunctionCallNode;
+                ISparqlExpression exp = null;
+                var funcName = functionOperator.Name;
+                string[] funcNames = { "contains", "endswith", "startswith", "length", "tolower", "toupper",
+                    "substring", "replace", "concat", "indexof", "trim", "year", "day", "month", "hour", "minute",
+                    "second", "now" };
+
+                if (!funcNames.Contains(funcName))
+                    throw new NotImplementedException($"Function {funcName} not implemented.");
+
+                if (funcName == "now") // NOW() in sparql does not work, will generate this now in .net instead.
                 {
-                    ISparqlExpression exp = null;
-                    VariableTerm valueTerm;
-                    ConstantTerm constantTerm = null;
-                    ILiteralNode literalNode = null;
-                    var funcName = functionOperator.Name;
-                    if (funcName == "contains" || funcName == "endswith" || funcName == "startswith")
+                    exp = new VDS.RDF.Query.Expressions.Functions.Sparql.DateTime.NowFunction();
+                    return (new UnaryExpressionFilter(exp)).Expression;
+                }
+                var property = functionOperator.Parameters.ElementAt(0) as SingleValuePropertyAccessNode;
+                var func = functionOperator.Parameters.ElementAt(0) as SingleValueFunctionCallNode;
+                if ((property != null && property.Property != null) || func != null)
+                {
+                    ISparqlExpression valueTerm = null;
+                    if (property != null && property.Property != null)
+                        valueTerm = new VariableTerm($"?{property.Property.Name}");
+                    else
+                        valueTerm = BuildSparqlFilter(func);
+
+                    if (funcName == "length")
+                        exp = new StrLenFunction(valueTerm);
+                    else if (funcName == "tolower")
+                        exp = new LCaseFunction(valueTerm);
+                    else if (funcName == "toupper")
+                        exp = new UCaseFunction(valueTerm);
+                    else if (funcName == "year")
+                        exp = new YearFunction(valueTerm);
+                    else if (funcName == "day")
+                        exp = new DayFunction(valueTerm);
+                    else if (funcName == "month")
+                        exp = new MonthFunction(valueTerm);
+                    else if (funcName == "hour")
+                        exp = new HoursFunction(valueTerm);
+                    else if (funcName == "minute")
+                        exp = new MinutesFunction(valueTerm);
+                    else if (funcName == "second")
+                        exp = new SecondsFunction(valueTerm);
+                    else
                     {
-                        var property = functionOperator.Parameters.ElementAt(0) as SingleValuePropertyAccessNode;
                         var constant = functionOperator.Parameters.ElementAt(1) as ConstantNode;
-                        if (property != null && property.Property != null)
+                        ConstantTerm constantTerm = new ConstantTerm(CreateLiteralNode(constant));
+                        if (funcName == "contains")
+                            exp = new ContainsFunction(valueTerm, constantTerm);
+                        else if (funcName == "endswith")
+                            exp = new StrEndsFunction(valueTerm, constantTerm);
+                        else if (funcName == "startswith")
+                            exp = new StrStartsFunction(valueTerm, constantTerm);
+                        else if (funcName == "indexof")
+                            throw new NotImplementedException("Sparql does not have counterpart of indexof function.");
+                        else if (funcName == "trim")
+                            throw new NotImplementedException("Sparql needs regex to do trim.");
+                        else if (funcName == "concat")
+                            exp = new ConcatFunction(new List<ISparqlExpression> { valueTerm, constantTerm });
+                        else if (funcName == "substring")
                         {
-                            literalNode = nodeFactory.CreateLiteralNode(constant.LiteralText.Replace("'", ""));
-                            valueTerm = new VariableTerm($"?{property.Property.Name}");
-                            constantTerm = new ConstantTerm(literalNode);
-                            if (funcName == "contains")
-                                exp = new ContainsFunction(valueTerm, constantTerm);
-                            else if (funcName == "endswith")
-                                exp = new StrEndsFunction(valueTerm, constantTerm);
-                            else if (funcName == "startswith")
-                                exp = new StrStartsFunction(valueTerm, constantTerm);
+                            if (functionOperator.Parameters.Count() > 2)
+                            {
+                                var constant2 = functionOperator.Parameters.ElementAt(2) as ConstantNode;
+                                ConstantTerm constantTerm2 = new ConstantTerm(CreateLiteralNode(constant2));
+                                exp = new SubStrFunction(valueTerm, constantTerm, constantTerm2);
+                            }
+                            else
+                                exp = new SubStrFunction(valueTerm, constantTerm);
+                        }
+                        else if (funcName == "replace")
+                        {
+                            var constant2 = functionOperator.Parameters.ElementAt(2) as ConstantNode;
+                            ConstantTerm constantTerm2 = new ConstantTerm(CreateLiteralNode(constant2));
+                            exp = new ReplaceFunction(valueTerm, constantTerm, constantTerm2);
                         }
                     }
-                    if (exp != null)
-                        filterExp = (new UnaryExpressionFilter(exp)).Expression;
                 }
-                else if (binaryOperator != null)
+                if (exp != null)
+                    return (new UnaryExpressionFilter(exp)).Expression;
+                return null;
+            }
+
+            else if (filterNode.GetType() == typeof(BinaryOperatorNode))
+            {
+                var binaryOperator = filterNode as BinaryOperatorNode;
+                if (binaryOperator.OperatorKind == BinaryOperatorKind.And)
                 {
-                    var property = binaryOperator.Left as SingleValuePropertyAccessNode ?? binaryOperator.Right as SingleValuePropertyAccessNode;
-                    var constant = binaryOperator.Left as ConstantNode ?? binaryOperator.Right as ConstantNode;
-                    var convert = binaryOperator.Left as ConvertNode ?? binaryOperator.Right as ConvertNode;
+                    return new AndExpression(BuildSparqlFilter(binaryOperator.Left), BuildSparqlFilter(binaryOperator.Right));
+                }
+                else if (binaryOperator.OperatorKind == BinaryOperatorKind.Or)
+                {
+                    return new OrExpression(BuildSparqlFilter(binaryOperator.Left), BuildSparqlFilter(binaryOperator.Right));
+                }
 
-                    if (property != null && property.Property != null)
+                var property = binaryOperator.Left as SingleValuePropertyAccessNode ?? binaryOperator.Right as SingleValuePropertyAccessNode;
+                var constant = binaryOperator.Left as ConstantNode ?? binaryOperator.Right as ConstantNode;
+                var convert = binaryOperator.Left as ConvertNode ?? binaryOperator.Right as ConvertNode;
+                var function = binaryOperator.Left as SingleValueFunctionCallNode;
+
+                if ((property != null && property.Property != null) || function != null)
+                {
+                    ISparqlExpression exp = null;
+                    ISparqlExpression valueTerm;
+                    ISparqlExpression constantTerm = null;
+                    ILiteralNode literalNode = null;
+
+                    if (convert != null)
                     {
-                        ISparqlExpression exp = null;
-                        VariableTerm valueTerm;
-                        ConstantTerm constantTerm = null;
-                        ILiteralNode literalNode = null;
+                        if (convert.Source is SingleValueFunctionCallNode)
+                            constantTerm = BuildSparqlFilter(convert.Source as SingleValueFunctionCallNode);
+                        else if (convert.Source is ConstantNode)
+                            literalNode = CreateLiteralNode(convert.Source as ConstantNode);
+                    }
+                    else if (constant != null && constant.Value != null)
+                        literalNode = CreateLiteralNode(constant);
 
-                        if (convert != null)
-                        {
-                            var asConstant = convert.Source as ConstantNode;
-                            switch ((convert.TypeReference.Definition as IEdmPrimitiveType).PrimitiveKind)
-                            {
-                                case EdmPrimitiveTypeKind.DateTimeOffset:
-                                    literalNode = LiteralExtensions.ToLiteralDate((asConstant.Value as DateTimeOffset?).GetValueOrDefault(), nodeFactory);
-                                    break;
-                                case EdmPrimitiveTypeKind.Int32:
-                                    literalNode = LiteralExtensions.ToLiteral((asConstant.Value as Int32?).GetValueOrDefault(), nodeFactory);
-                                    break;
-                                default:
-                                    break;
-                            }
-                        }
-                        else if (constant != null && constant.Value != null)
-                            literalNode = nodeFactory.CreateLiteralNode(constant.LiteralText.Replace("'", ""));
-
-                        if (literalNode != null)
-                        {
+                    if ((literalNode != null) || (constantTerm != null))
+                    {
+                        if (property != null && property.Property != null)
                             valueTerm = new VariableTerm($"?{property.Property.Name}");
+                        else
+                            valueTerm = BuildSparqlFilter(function);
+                        if (constantTerm == null)
                             constantTerm = new ConstantTerm(literalNode);
-                            if (binaryOperator.OperatorKind == BinaryOperatorKind.Equal)
-                                exp = new EqualsExpression(valueTerm, constantTerm);
-                            else if (binaryOperator.OperatorKind == BinaryOperatorKind.NotEqual)
-                                exp = new NotEqualsExpression(valueTerm, constantTerm);
-                            else if (binaryOperator.OperatorKind == BinaryOperatorKind.GreaterThan)
-                                exp = new GreaterThanExpression(valueTerm, constantTerm);
-                            else if (binaryOperator.OperatorKind == BinaryOperatorKind.GreaterThanOrEqual)
-                                exp = new GreaterThanOrEqualToExpression(valueTerm, constantTerm);
-                            else if (binaryOperator.OperatorKind == BinaryOperatorKind.LessThan)
-                                exp = new LessThanExpression(valueTerm, constantTerm);
-                            else if (binaryOperator.OperatorKind == BinaryOperatorKind.LessThanOrEqual)
-                                exp = new LessThanOrEqualToExpression(valueTerm, constantTerm);
+                        if (binaryOperator.OperatorKind == BinaryOperatorKind.Equal)
+                            exp = new EqualsExpression(valueTerm, constantTerm);
+                        else if (binaryOperator.OperatorKind == BinaryOperatorKind.NotEqual)
+                            exp = new NotEqualsExpression(valueTerm, constantTerm);
+                        else if (binaryOperator.OperatorKind == BinaryOperatorKind.GreaterThan)
+                            exp = new GreaterThanExpression(valueTerm, constantTerm);
+                        else if (binaryOperator.OperatorKind == BinaryOperatorKind.GreaterThanOrEqual)
+                            exp = new GreaterThanOrEqualToExpression(valueTerm, constantTerm);
+                        else if (binaryOperator.OperatorKind == BinaryOperatorKind.LessThan)
+                            exp = new LessThanExpression(valueTerm, constantTerm);
+                        else if (binaryOperator.OperatorKind == BinaryOperatorKind.LessThanOrEqual)
+                            exp = new LessThanOrEqualToExpression(valueTerm, constantTerm);
 
-                            filterExp = (new UnaryExpressionFilter(exp)).Expression;
-                        }
+                        return (new UnaryExpressionFilter(exp)).Expression;
                     }
                 }
             }
-            return filterExp;
+            else if (filterNode.GetType() == typeof(UnaryOperatorNode))
+            {
+                var unaryOperator = filterNode as UnaryOperatorNode;
+                if (unaryOperator.OperatorKind == UnaryOperatorKind.Not)
+                {
+                    return new NotEqualsExpression(BuildSparqlFilter(unaryOperator.Operand), 
+                        new ConstantTerm(LiteralExtensions.ToLiteral(true, nodeFactory)));
+                }
+            }
+            return null;
         }
 
         private static string BuildSparql(ODataQueryOptions options)
@@ -296,7 +381,9 @@
             }
 
             /*Filter options*/
-            ISparqlExpression filterExp = BuildSparqlFilter(options);
+            ISparqlExpression filterExp = null;
+            if (options.Filter != null && options.Filter.FilterClause != null)
+                filterExp = BuildSparqlFilter(options.Filter.FilterClause.Expression);
 
             /*Skip and Top options*/
             List<ITriplePattern> subQueryTriplePatterns = new List<ITriplePattern>();
