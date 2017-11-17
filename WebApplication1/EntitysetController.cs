@@ -39,6 +39,7 @@
         //http://localhost:2933/Incumbency?$filter=not(year(IncumbencyStartDate)%20lt%201998)
         //http://localhost:2933/House?$filter=not(length(HouseName)%20lt%208)
         //http://localhost:2933/House?$filter=not%20endswith(HouseName,%20%27ords%27)
+        //http://localhost:2933/Person?$filter=length(substring(PersonGivenName,%202))%20sub%20length(PersonFamilyName)%20eq%202
 
 
         [HttpGet]
