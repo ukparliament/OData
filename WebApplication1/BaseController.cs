@@ -125,12 +125,30 @@
         private static ILiteralNode CreateLiteralNode(ConstantNode node)
         {
             NodeFactory nodeFactory = new NodeFactory();
+            //if (node.LiteralText == "null")
+            //    return LiteralNode LiteralExtensions.ToLiteral("null", nodeFactory);
             switch ((node.TypeReference.Definition as IEdmPrimitiveType).PrimitiveKind)
             {
                 case EdmPrimitiveTypeKind.DateTimeOffset:
                     return LiteralExtensions.ToLiteralDate((node.Value as DateTimeOffset?).GetValueOrDefault(), nodeFactory);
+                case EdmPrimitiveTypeKind.Date:
+                    return LiteralExtensions.ToLiteralDate((node.Value as Date?).GetValueOrDefault(), nodeFactory);
                 case EdmPrimitiveTypeKind.Int32:
                     return LiteralExtensions.ToLiteral((node.Value as Int32?).GetValueOrDefault(), nodeFactory);
+                case EdmPrimitiveTypeKind.Double:
+                    return LiteralExtensions.ToLiteral((node.Value as Double?).GetValueOrDefault(), nodeFactory);
+                case EdmPrimitiveTypeKind.Decimal:
+                    return LiteralExtensions.ToLiteral((node.Value as Decimal?).GetValueOrDefault(), nodeFactory);
+                case EdmPrimitiveTypeKind.Single:
+                    return LiteralExtensions.ToLiteral((node.Value as Single?).GetValueOrDefault(), nodeFactory);
+                case EdmPrimitiveTypeKind.Int16:
+                    return LiteralExtensions.ToLiteral((node.Value as Int16?).GetValueOrDefault(), nodeFactory);
+                case EdmPrimitiveTypeKind.Int64:
+                    return LiteralExtensions.ToLiteral((node.Value as Int64?).GetValueOrDefault(), nodeFactory);
+                case EdmPrimitiveTypeKind.Boolean:
+                    return LiteralExtensions.ToLiteral((node.Value as Boolean?).GetValueOrDefault(), nodeFactory);
+                case EdmPrimitiveTypeKind.String:
+                    return nodeFactory.CreateLiteralNode(node.LiteralText.Replace("'", ""));
                 default:
                     return nodeFactory.CreateLiteralNode(node.LiteralText.Replace("'", ""));
             }
@@ -141,7 +159,7 @@
             var funcName = functionOperator.Name;
             string[] funcNames = { "contains", "endswith", "startswith", "length", "tolower", "toupper",
                     "substring", "replace", "concat", "indexof", "trim", "year", "day", "month", "hour", "minute",
-                    "second", "now", };
+                    "second", "now", "ceiling", "floor", "round", };
 
             if (!funcNames.Contains(funcName))
                 throw new NotImplementedException($"Function {funcName} not implemented.");
@@ -177,6 +195,12 @@
                 return (new UnaryExpressionFilter(new MinutesFunction(valueTerm))).Expression;
             else if (funcName == "second")
                 return (new UnaryExpressionFilter(new SecondsFunction(valueTerm))).Expression;
+            else if (funcName == "ceiling")
+                return (new UnaryExpressionFilter(new CeilFunction(valueTerm))).Expression;
+            else if (funcName == "floor")
+                return (new UnaryExpressionFilter(new FloorFunction(valueTerm))).Expression;
+            else if (funcName == "round")
+                return (new UnaryExpressionFilter(new RoundFunction(valueTerm))).Expression;
             else
             {
                 var constant = functionOperator.Parameters.ElementAt(1) as ConstantNode;
@@ -235,6 +259,20 @@
             else if (filterNode.GetType() == typeof(BinaryOperatorNode))
             {
                 var binaryOperator = filterNode as BinaryOperatorNode;
+                //if (binaryOperator.Left.GetType() == typeof(ConvertNode))
+                //{
+                //    var cnode = binaryOperator.Left as ConvertNode;
+                //    if (cnode.Source.GetType() == typeof(ConstantNode))
+                //    {
+                //        if ((cnode.Source as ConstantNode).Value == null)
+                //        {
+                //            return new BoundFunction(BuildSparqlFilter(binaryOperator.Right));
+                //        }
+                //    }
+                //    //if (cnode.Source)
+                //}
+
+                //    return LiteralNode LiteralExtensions.ToLiteral("null", nodeFactory);
                 var left = BuildSparqlFilter(binaryOperator.Left);
                 var right = BuildSparqlFilter(binaryOperator.Right);
 
@@ -407,6 +445,7 @@
                         queryBuilder.OrderByDescending(typedNode.Property.Name);
                 }
             }
+
             return queryBuilder.BuildQuery().ToString();
         }
 

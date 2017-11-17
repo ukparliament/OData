@@ -49,7 +49,11 @@
         {
             ODataQueryOptions option = GetQueryOptions(Request);
             object result = GenerateODataResult(option);
-
+            /*Format options*/
+            if (option.RawValues.Format != null)
+            {
+                string format = option.RawValues.Format.ToLower(); //atom, xml, json
+            }
             return Ok(result);
         }
 
