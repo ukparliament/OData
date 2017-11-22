@@ -116,9 +116,7 @@
             System.Web.OData.Routing.ODataPath path = request.Properties["System.Web.OData.Path"] as System.Web.OData.Routing.ODataPath;
             var edmType = path.EdmType.AsElementType() as EdmEntityType;
             Type entityType = BaseController.GetType(edmType);
-            ODataModelBuilder modelBuilder = new Builder();
-            var model = modelBuilder.GetEdmModel();
-            ODataQueryContext context = new ODataQueryContext(model, entityType, path);
+            ODataQueryContext context = new ODataQueryContext(Global.edmModel, entityType, path);
             return new ODataQueryOptions(context, request);
         }
 
@@ -516,13 +514,24 @@
         protected static Uri GetPropertyUri(IEdmProperty structuralProperty)
         {
             var declaringType = BaseController.GetType(structuralProperty.DeclaringType);
+            Type[] interfaces;
+            if (declaringType.IsInterface)
+                interfaces = new Type[] { declaringType };
+            else
+                interfaces = declaringType.GetInterfaces();
 
-            if (declaringType != null)
+            if (interfaces != null)
             {
-                var property = declaringType.GetProperty(structuralProperty.Name);
-                var propertyAttribute = property.GetCustomAttributes(typeof(PropertyAttribute), false).Single() as PropertyAttribute;
+                foreach (var inter in interfaces)
+                {
+                    var property = inter.GetProperty(structuralProperty.Name);
+                    if (property != null)
+                    {
+                        var propertyAttribute = property.GetCustomAttributes(typeof(PropertyAttribute), false).Single() as PropertyAttribute;
 
-                return propertyAttribute.Uri;
+                        return propertyAttribute.Uri;
+                    }
+                }
             }
 
             return null;
