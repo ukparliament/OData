@@ -114,7 +114,7 @@
         protected static ODataQueryOptions GetQueryOptions(HttpRequestMessage request)
         {
             System.Web.OData.Routing.ODataPath path = request.Properties["System.Web.OData.Path"] as System.Web.OData.Routing.ODataPath;
-            var edmType = path.EdmType.AsElementType() as EdmEntityType;
+            var edmType = path.Segments[0].EdmType.AsElementType() as EdmEntityType;
             Type entityType = BaseController.GetType(edmType);
             ODataQueryContext context = new ODataQueryContext(Global.edmModel, entityType, path);
             return new ODataQueryOptions(context, request);
@@ -323,14 +323,19 @@
             List<ITriplePattern> predicateTriplePatterns = new List<ITriplePattern>();
             List<ITriplePattern> navTriplePatterns = new List<ITriplePattern>();
             List<ITriplePattern> classNavTriplePatterns = new List<ITriplePattern>();
+            List<ITriplePattern> classExpandTriplePatterns = new List<ITriplePattern>();
 
             if (options.Context.Path.Segments.Count > 1)
             {
-                var keys = (options.Context.Path.Segments[1] as KeySegment).Keys.ToList();
-                if (keys.Count() > 0)
+                var keySegment = options.Context.Path.Segments[1] as KeySegment;
+                if (keySegment != null)
                 {
-                    entityId = keys[0].Value.ToString();
-                    root = new NodeMatchPattern(nodeFactory.CreateUriNode(new Uri(NamespaceUri, entityId)));
+                    var keys = (options.Context.Path.Segments[1] as KeySegment).Keys.ToList();
+                    if (keys.Count() > 0)
+                    {
+                        entityId = keys[0].Value.ToString();
+                        root = new NodeMatchPattern(nodeFactory.CreateUriNode(new Uri(NamespaceUri, entityId)));
+                    }
                 }
             }
 
@@ -352,9 +357,10 @@
                     new NodeMatchPattern(nodeFactory.CreateUriNode(new Uri(RdfSpecsHelper.RdfType))),
                     new NodeMatchPattern(nodeFactory.CreateUriNode(GetUri(navEntityType)))));
             }
-
-            /*Select options*/
-            List<IEdmStructuralProperty> propList = new List<IEdmStructuralProperty>();
+            
+            /*Select and expand options*/
+            List<IEdmStructuralProperty> selectPropList = new List<IEdmStructuralProperty>();
+            List<IEdmNavigationProperty> expandPropList = new List<IEdmNavigationProperty>();
             if (options.SelectExpand != null && options.SelectExpand.SelectExpandClause != null)
             {
                 foreach (var item in options.SelectExpand.SelectExpandClause.SelectedItems)
@@ -364,33 +370,68 @@
                     {
                         var segment = selectItem.SelectedPath.FirstSegment as PropertySegment;
                         if (segment != null)
-                            propList.Add (segment.Property);
+                            selectPropList.Add(segment.Property);
+                    }
+                    var expandItem = item as ExpandedNavigationSelectItem;
+                    if (expandItem != null)
+                    {
+                        var segment = expandItem.PathToNavigationProperty.FirstSegment as NavigationPropertySegment;
+                        if (segment != null)
+                        {
+                            expandPropList.Add(segment.NavigationProperty);
+                            classExpandTriplePatterns.Add(new TriplePattern(new VariablePattern($"?{segment.NavigationProperty.Name}"),
+                                new NodeMatchPattern(nodeFactory.CreateUriNode(new Uri(RdfSpecsHelper.RdfType))),
+                                new NodeMatchPattern(nodeFactory.CreateUriNode(GetUri(segment.EdmType.AsElementType() as EdmEntityType)))));
+                        }
                     }
                 }
             }
-            else
+
+            if (selectPropList.Count == 0)
             {
                 if (navProp != null)
-                    propList = navEntityType.StructuralProperties().ToList();
+                    selectPropList = navEntityType.StructuralProperties().ToList();
                 else
-                    propList = entityType.StructuralProperties().ToList();
+                    selectPropList = entityType.StructuralProperties().ToList();
             }
 
-            foreach (var prop in propList)
+            foreach (var prop in selectPropList)
             {
                 if (prop.Name == "Id")
                     continue;
 
                 if (navProp != null)
-                {
                     predicateTriplePatterns.Add(new TriplePattern(new VariablePattern($"?{navProp}"),
                     new NodeMatchPattern(nodeFactory.CreateUriNode(new Uri(navProperties[prop.Name].Item2.AbsoluteUri))),
                     new VariablePattern($"?{prop.Name}")));
-                }
                 else
                     predicateTriplePatterns.Add(new TriplePattern(root,
                     new NodeMatchPattern(nodeFactory.CreateUriNode(new Uri(properties[prop.Name].Item2.AbsoluteUri))),
                     new VariablePattern($"?{prop.Name}")));
+            }
+
+            foreach (var expProp in expandPropList)
+            {
+                if (navProp != null)
+                {
+
+                }
+                else
+                {
+                    classExpandTriplePatterns.Add(new TriplePattern(root,
+                            new NodeMatchPattern(nodeFactory.CreateUriNode(new Uri(properties[expProp.Name].Item2.AbsoluteUri))),
+                            new VariablePattern($"?{expProp.Name}")));
+                    var expEntityType = expProp.Type.Definition.AsElementType() as EdmEntityType;
+                    Dictionary<string, Tuple<Type, Uri>> expandProperties = GetAllProperties(expEntityType);
+                    foreach (var prop in expEntityType.StructuralProperties())
+                    {
+                        if (prop.Name == "Id")
+                            continue;
+                        predicateTriplePatterns.Add(new TriplePattern(new VariablePattern($"?{expProp.Name}"),
+                            new NodeMatchPattern(nodeFactory.CreateUriNode(new Uri(expandProperties[prop.Name].Item2.AbsoluteUri))),
+                            new VariablePattern($"?{prop.Name}Expand")));
+                    }
+                }
             }
 
             /*Filter options*/
@@ -417,13 +458,13 @@
             IQueryBuilder queryBuilder = null;
             if (navProp == null)
                 queryBuilder = QueryBuilder
-                    .Construct(q => q.Where(classTriplePatterns.Concat(predicateTriplePatterns).ToArray()));
+                    .Construct(q => q.Where(classTriplePatterns.Concat(predicateTriplePatterns).Concat(classExpandTriplePatterns).ToArray()));
             else
                 queryBuilder = QueryBuilder
-                    .Construct(q => q.Where(navTriplePatterns.Concat(predicateTriplePatterns).ToArray()));
+                    .Construct(q => q.Where(navTriplePatterns.Concat(predicateTriplePatterns).Concat(classExpandTriplePatterns).ToArray()));
 
             queryBuilder.Where(classTriplePatterns.Concat(navTriplePatterns).
-                Concat(classNavTriplePatterns).Concat(subQueryTriplePatterns).ToArray());
+                Concat(classNavTriplePatterns).Concat(classExpandTriplePatterns).Concat(subQueryTriplePatterns).ToArray());
 
             foreach (TriplePattern tp in predicateTriplePatterns)
                 queryBuilder.Optional(gp => gp.Where(tp));
@@ -470,9 +511,11 @@
             IEnumerable<IOntologyInstance> result = Execute(options) as IEnumerable<IOntologyInstance>;
             if (result.Count() > 0)
             {
-                MethodInfo castMethod = typeof(Enumerable).GetMethod("Cast").MakeGenericMethod(result.First().GetType());
+                var type = result.First().GetType();
 
-                return castMethod.Invoke(result, new object[] { result });
+                MethodInfo castMethod = typeof(Enumerable).GetMethod("Cast").MakeGenericMethod(type);
+
+                return castMethod.Invoke(result.Where(x=>x.GetType() == type), new object[] { result.Where(x => x.GetType() == type) });
             }
             return result;
         }

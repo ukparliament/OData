@@ -1,5 +1,6 @@
 ﻿namespace WebApplication1
 {
+    using Parliament.Ontology.Base;
     using Parliament.Ontology.Code;
     using System.Collections.Generic;
     using System.Linq;
@@ -25,6 +26,9 @@
                 entityType.QueryConfiguration.SetSelect(propertyNames, System.Web.OData.Query.SelectExpandType.Allowed);
                 entityType.QueryConfiguration.SetFilter(propertyNames, true);
                 entityType.QueryConfiguration.SetExpand(propertyNames, 2, System.Web.OData.Query.SelectExpandType.Allowed);
+                entityType.QueryConfiguration.SetCount(true);
+                //entityType.QueryConfiguration.SetMaxTop(100);
+                //entityType.QueryConfiguration.SetPageSize(100);
                 this.AddEntitySet(@class.Name, entityType);
             }
 

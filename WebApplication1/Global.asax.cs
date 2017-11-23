@@ -30,9 +30,9 @@
                     Target = (EdmEntityType)edmModel.FindDeclaredType($"{clrType.Namespace}.{clrType.Name.Substring(1)}"),
                     ContainsTarget = removedNavProp.ContainsTarget,
                     OnDelete = EdmOnDeleteAction.None,
-                    Name = removedNavProp.Name
-                });
+                    Name = removedNavProp.Name,
 
+                });
             }
 
             var handler = new DefaultODataPathHandler(); // built-in

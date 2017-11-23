@@ -40,11 +40,14 @@
         //http://localhost:2933/House?$filter=not(length(HouseName)%20lt%208)
         //http://localhost:2933/House?$filter=not%20endswith(HouseName,%20%27ords%27)
         //http://localhost:2933/Person?$filter=length(substring(PersonGivenName,%202))%20sub%20length(PersonFamilyName)%20eq%202
+        //http://localhost:2933/House('1AFu55Hs')/HouseHasHouseSeat/$count
 
 
         [HttpGet]
-        //[EnableQuery(AllowedQueryOptions = System.Web.OData.Query.AllowedQueryOptions.Select |
-        //    System.Web.OData.Query.AllowedQueryOptions.Filter)]
+        [EnableQuery(AllowedQueryOptions = System.Web.OData.Query.AllowedQueryOptions.Select |
+            System.Web.OData.Query.AllowedQueryOptions.Filter |
+            System.Web.OData.Query.AllowedQueryOptions.Expand |
+            System.Web.OData.Query.AllowedQueryOptions.All )]
         public IHttpActionResult Default()
         {
             ODataQueryOptions option = GetQueryOptions(Request);
@@ -54,7 +57,8 @@
             {
                 string format = option.RawValues.Format.ToLower(); //atom, xml, json
             }
-            return Ok(result);
+            var response = Ok(result);
+            return response;
         }
     }
 }

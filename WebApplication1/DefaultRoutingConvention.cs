@@ -28,9 +28,26 @@
                     case "~/entityset/key/navigation":// http://example.com/Person('asdf1234')/PersonHasPersonImage
                         return "Entityset";// "EntitysetKeyNavigation";
 
+                    case "~/entityset/$count":
+                        return "Entityset";
+
+                    case "~/entityset/key/navigation/$count":
+                        return "Entityset";
+
+                    case "~/entityset/key/property":
+                        return "Entityset";
+
+                    case "~/entityset/key/property/$count":
+                        return "Entityset";
+
+                    case "~/entityset/key/navigation/$ref":
+                    // does this exist? case "~/entityset/key/navigation/key":
+                    case "~/entityset/key/navigation/key/$ref":
+                    case "~/entityset/key/property/$value":
+                    case "~/singleton":
+
                     case "~":
                     case "~/$metadata":
-                    case "~/entityset/$count":
                     case "~/entityset/action":
                     case "~/entityset/cast":
                     case "~/entityset/cast/$count":
@@ -57,16 +74,9 @@
                     case "~/entityset/key/dynamicproperty":
                     case "~/entityset/key/function":
                     case "~/entityset/key/function/$count":
-                    case "~/entityset/key/navigation/$count":
-                    case "~/entityset/key/navigation/$ref":
-                    case "~/entityset/key/navigation/key/$ref":
-                    case "~/entityset/key/property":
-                    case "~/entityset/key/property/$count":
-                    case "~/entityset/key/property/$value":
                     case "~/entityset/key/property/cast":
                     case "~/entityset/key/property/dynamicproperty":
                     case "~/entityset/unresolved":
-                    case "~/singleton":
                     case "~/singleton/action":
                     case "~/singleton/cast":
                     case "~/singleton/cast/action":
