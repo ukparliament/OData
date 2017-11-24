@@ -22,10 +22,14 @@
             {
                 var entityType = this.AddEntityType(@class);
                 entityType.HasKey(@class.GetProperty("Id"));
-                string[] propertyNames = @class.GetProperties().Select(p => p.Name).ToArray();
-                entityType.QueryConfiguration.SetSelect(propertyNames, System.Web.OData.Query.SelectExpandType.Allowed);
-                entityType.QueryConfiguration.SetFilter(propertyNames, true);
-                entityType.QueryConfiguration.SetExpand(propertyNames, 2, System.Web.OData.Query.SelectExpandType.Allowed);
+                var properties = @class.GetProperties();
+                var navProps = @class.GetProperties().Where(cls => cls.PropertyType.IsInterface)
+                    .Select(cls => cls.Name);
+
+                var structProps = properties.Select(p => p.Name).Where(p => !navProps.Contains(p));
+                entityType.QueryConfiguration.SetSelect(structProps, System.Web.OData.Query.SelectExpandType.Allowed);
+                entityType.QueryConfiguration.SetFilter(structProps, true);
+                entityType.QueryConfiguration.SetExpand(navProps, 1, System.Web.OData.Query.SelectExpandType.Allowed);
                 entityType.QueryConfiguration.SetCount(true);
                 //entityType.QueryConfiguration.SetMaxTop(100);
                 //entityType.QueryConfiguration.SetPageSize(100);

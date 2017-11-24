@@ -41,7 +41,7 @@
         //http://localhost:2933/House?$filter=not%20endswith(HouseName,%20%27ords%27)
         //http://localhost:2933/Person?$filter=length(substring(PersonGivenName,%202))%20sub%20length(PersonFamilyName)%20eq%202
         //http://localhost:2933/House('1AFu55Hs')/HouseHasHouseSeat/$count
-
+        //http://localhost:2933/House('1AFu55Hs')?$expand=HouseHasFormalBody,HouseHasHouseIncumbency
 
         [HttpGet]
         [EnableQuery(AllowedQueryOptions = System.Web.OData.Query.AllowedQueryOptions.Select |
