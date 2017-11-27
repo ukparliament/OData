@@ -24,7 +24,7 @@
                 entityType.HasKey(@class.GetProperty("Id"));
                 var properties = @class.GetProperties();
                 var navProps = @class.GetProperties().Where(cls => cls.PropertyType.IsInterface)
-                    .Select(cls => cls.Name);
+                    .Select(cls1 => cls1.Name);
 
                 var structProps = properties.Select(p => p.Name).Where(p => !navProps.Contains(p));
                 entityType.QueryConfiguration.SetSelect(structProps, System.Web.OData.Query.SelectExpandType.Allowed);

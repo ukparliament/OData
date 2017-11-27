@@ -314,18 +314,21 @@
         private static string BuildSparql(ODataQueryOptions options)
         {
             var entityType = options.Context.Path.Segments[0].EdmType.AsElementType() as EdmEntityType;
-            string entityId = null;
-            string navProp = null;
-            EdmEntityType navEntityType = null;
+            NavigationPropertySegment navProp = null;
+            //string navPropName = null;
+            //EdmEntityType navEntityType = null;
             Dictionary<string, Tuple<Type, Uri>> properties = GetAllProperties(entityType);
             Dictionary<string, Tuple<Type, Uri>> navProperties = null;
             NodeFactory nodeFactory = new NodeFactory();
             PatternItem root = new VariablePattern("Id");
-            List<ITriplePattern> classTriplePatterns = new List<ITriplePattern>();
+            PatternItem navPropRoot = null;
+            List <ITriplePattern> classTriplePatterns = new List<ITriplePattern>();
             List<ITriplePattern> predicateTriplePatterns = new List<ITriplePattern>();
             List<ITriplePattern> navTriplePatterns = new List<ITriplePattern>();
             List<ITriplePattern> classNavTriplePatterns = new List<ITriplePattern>();
             List<ITriplePattern> classExpandTriplePatterns = new List<ITriplePattern>();
+            List<IEdmStructuralProperty> selectPropList = new List<IEdmStructuralProperty>();
+            List<IEdmNavigationProperty> expandPropList = new List<IEdmNavigationProperty>();
 
             if (options.Context.Path.Segments.Count > 1)
             {
@@ -335,7 +338,7 @@
                     var keys = (options.Context.Path.Segments[1] as KeySegment).Keys.ToList();
                     if (keys.Count() > 0)
                     {
-                        entityId = keys[0].Value.ToString();
+                        string entityId = keys[0].Value.ToString();
                         if (entityId.StartsWith(NamespaceUri.AbsoluteUri))
                             root = new NodeMatchPattern(nodeFactory.CreateUriNode(new Uri(entityId)));
                         else
@@ -351,22 +354,47 @@
             /* process navigation property */
             if (options.Context.Path.Segments.Count > 2)
             {
-                navProp = (options.Context.Path.Segments[2] as NavigationPropertySegment).NavigationProperty.Name;
-                navEntityType = (options.Context.Path.Segments[2] as NavigationPropertySegment).EdmType.AsElementType() as EdmEntityType;
-                navProperties = GetAllProperties(navEntityType);
+                navProp = options.Context.Path.Segments[2] as NavigationPropertySegment;
+                var prop = options.Context.Path.Segments[2] as PropertySegment;
+                if (navProp != null)
+                {
+                    var navPropName = navProp.NavigationProperty.Name;
+                    var navEntityType = navProp.EdmType.AsElementType() as EdmEntityType;
+                    navProperties = GetAllProperties(navEntityType);
 
-                classNavTriplePatterns.Add(new TriplePattern(root,
-                    new NodeMatchPattern(nodeFactory.CreateUriNode(new Uri(properties[navProp].Item2.AbsoluteUri))),
-                    new VariablePattern($"?{navProp}")));
+                    navPropRoot = new VariablePattern($"?{navPropName}");
+                    if (options.Context.Path.Segments.Count > 3)
+                    {
+                        var navKeySegment = options.Context.Path.Segments[3] as KeySegment;
+                        if (navKeySegment != null)
+                        {
+                            var keys = navKeySegment.Keys.ToList();
+                            if (keys.Count() > 0)
+                            {
+                                string navEntityId = keys[0].Value.ToString();
+                                if (navEntityId.StartsWith(NamespaceUri.AbsoluteUri))
+                                    navPropRoot = new NodeMatchPattern(nodeFactory.CreateUriNode(new Uri(navEntityId)));
+                                else
+                                    navPropRoot = new NodeMatchPattern(nodeFactory.CreateUriNode(new Uri(NamespaceUri, navEntityId)));
+                            }
+                        }
+                    }
 
-                navTriplePatterns.Add(new TriplePattern(new VariablePattern($"?{navProp}"),
-                    new NodeMatchPattern(nodeFactory.CreateUriNode(new Uri(RdfSpecsHelper.RdfType))),
-                    new NodeMatchPattern(nodeFactory.CreateUriNode(GetUri(navEntityType)))));
+                    classNavTriplePatterns.Add(new TriplePattern(root,
+                        new NodeMatchPattern(nodeFactory.CreateUriNode(new Uri(properties[navPropName].Item2.AbsoluteUri))),
+                        navPropRoot));
+
+                    navTriplePatterns.Add(new TriplePattern(navPropRoot,
+                        new NodeMatchPattern(nodeFactory.CreateUriNode(new Uri(RdfSpecsHelper.RdfType))),
+                        new NodeMatchPattern(nodeFactory.CreateUriNode(GetUri(navEntityType)))));
+                }
+                else if (prop != null)
+                {
+                    selectPropList.Add(prop.Property);
+                }
             }
             
             /*Select and expand options*/
-            List<IEdmStructuralProperty> selectPropList = new List<IEdmStructuralProperty>();
-            List<IEdmNavigationProperty> expandPropList = new List<IEdmNavigationProperty>();
             if (options.SelectExpand != null && options.SelectExpand.SelectExpandClause != null)
             {
                 foreach (var item in options.SelectExpand.SelectExpandClause.SelectedItems)
@@ -391,7 +419,7 @@
             if (selectPropList.Count == 0)
             {
                 if (navProp != null)
-                    selectPropList = navEntityType.StructuralProperties().ToList();
+                    selectPropList = (navProp.EdmType.AsElementType() as EdmEntityType).StructuralProperties().ToList();
                 else
                     selectPropList = entityType.StructuralProperties().ToList();
             }
@@ -403,7 +431,7 @@
                     continue;
 
                 if (navProp != null)
-                    predicateTriplePatterns.Add(new TriplePattern(new VariablePattern($"?{navProp}"),
+                    predicateTriplePatterns.Add(new TriplePattern(navPropRoot,
                     new NodeMatchPattern(nodeFactory.CreateUriNode(new Uri(navProperties[prop.Name].Item2.AbsoluteUri))),
                     new VariablePattern($"?{prop.Name}")));
                 else
@@ -443,7 +471,6 @@
                         predTripleList.Add(new TriplePattern(new VariablePattern($"?{expProp.Name}"),
                             new NodeMatchPattern(nodeFactory.CreateUriNode(new Uri(expandProperties[prop.Name].Item2.AbsoluteUri))),
                             new VariablePattern($"?{prop.Name}Expand")));
-                        //predicateTriplePatterns
                     }
 
                     IQueryBuilder subqueryBuilder = null;
@@ -464,7 +491,7 @@
             {
                 IQueryBuilder subqueryBuilder = null;
                 if (navProp != null)
-                    subqueryBuilder = QueryBuilder.Select(new string[] { $"?{navProp}" }).Where(navTriplePatterns.ToArray());
+                    subqueryBuilder = QueryBuilder.Select(new string[] { $"?{navProp.NavigationProperty.Name}" }).Where(navTriplePatterns.ToArray());
                 else
                     subqueryBuilder = QueryBuilder.Select(new string[] { "Id" }).Where(classTriplePatterns.ToArray());
                 if (options.Skip != null)
@@ -506,7 +533,6 @@
                         queryBuilder.OrderByDescending(typedNode.Property.Name);
                 }
             }
-            //queryBuilder.Bind(b => b.Variable("aa")).Equals("a");
 
             return queryBuilder.BuildQuery().ToString();
         }
@@ -527,33 +553,63 @@
             return ontologyInstances;
         }
 
-        protected static object GenerateODataResult(ODataQueryOptions options)//Expression expression)
+        private static bool IsTypeEnumerable(Type type)
         {
-            //DbQueryProvider dbQueryProvider = new DbQueryProvider();
-            IEnumerable<IOntologyInstance> result = Execute(options) as IEnumerable<IOntologyInstance>;
+            return (type != typeof(string)) && ((type.IsArray) ||
+                ((type.GetInterfaces().Any()) && (type.GetInterfaces().Any(i => i == typeof(IEnumerable)))));
+        }
 
-            foreach (var res in result)
+        protected static Type GetClass(Type type)
+        {
+            var mappingAssembly = typeof(IPerson).Assembly; // TODO: ???
+            var t = mappingAssembly.GetType(type.FullName);
+            if (!t.IsInterface)
+                return t;
+            else
             {
-                res.Id = res.Id.Split('/').Last();
-                var type = res.GetType();
-                foreach (var prop in type.GetProperties())
+                var name = $"{type.Namespace}.{type.Name.Substring(1)}";
+                return mappingAssembly.GetType(name);
+            }
+        }
+
+        private static void RemoveIDPrefix(IEnumerable<IOntologyInstance> results)
+        {
+            foreach (var result in results)
+            {
+                result.Id = result.Id.Split('/').Last();
+                foreach (var prop in result.GetType().GetProperties().Where(p => IsTypeEnumerable(p.PropertyType)))
                 {
-                    //if (!prop.PropertyType.IsInterface)
-                    //{
-                    //    IEnumerable
-                    //}
-                        
+                    var propValue = prop.GetValue(result);
+                    var instanceType = prop.PropertyType.GetGenericArguments()[0];
+                    if (propValue != null && instanceType.GetInterface("IOntologyInstance") != null)
+                    {
+                        var newValue = ((IEnumerable<IOntologyInstance>)propValue).ToList();
+                        newValue.ForEach(instance => instance.Id = instance.Id.Split('/').Last());
+
+                        var cls = GetClass(instanceType);
+                        var castMethodValues = typeof(Enumerable).GetMethod("Cast")
+                            .MakeGenericMethod(cls);
+                        prop.SetValue(result, castMethodValues.Invoke(newValue, new object[] { newValue }));
+                    }
                 }
             }
-            if (result.Count() > 0)
+        }
+
+        protected static object GenerateODataResult(ODataQueryOptions options)//Expression expression)
+        {
+            IEnumerable<IOntologyInstance> results = Execute(options) as IEnumerable<IOntologyInstance>;
+
+            RemoveIDPrefix(results);
+
+            if (results.Count() > 0)
             {
-                var type = result.First().GetType();
+                var type = results.First().GetType();
 
                 MethodInfo castMethod = typeof(Enumerable).GetMethod("Cast").MakeGenericMethod(type);
 
-                return castMethod.Invoke(result.Where(x=>x.GetType() == type), new object[] { result.Where(x => x.GetType() == type) });
+                return castMethod.Invoke(results.Where(x=>x.GetType() == type), new object[] { results.Where(x => x.GetType() == type) });
             }
-            return result;
+            return results;
         }
 
         private static Type ConvertPrimitiveEdmTypeToType(IEdmPrimitiveType edmType, bool isNullable)

@@ -37,14 +37,24 @@
                     case "~/entityset/key/property":
                         return "Entityset";
 
-                    case "~/entityset/key/property/$count":
+                    case "~/entityset/key/property/$value":
                         return "Entityset";
 
                     case "~/entityset/key/navigation/$ref":
+                        return "Entityset";
                     // does this exist? case "~/entityset/key/navigation/key":
+
+                    case "~/entityset/key/navigation/key":
+                        return "Entityset";
+
                     case "~/entityset/key/navigation/key/$ref":
-                    case "~/entityset/key/property/$value":
+                        return "Entityset";
+
                     case "~/singleton":
+                        //return "Entityset";
+                    //case "~/entityset/key/property/$count": this does not work
+                    //    return "Entityset";
+
 
                     case "~":
                     case "~/$metadata":

@@ -42,12 +42,20 @@
         //http://localhost:2933/Person?$filter=length(substring(PersonGivenName,%202))%20sub%20length(PersonFamilyName)%20eq%202
         //http://localhost:2933/House('1AFu55Hs')/HouseHasHouseSeat/$count
         //http://localhost:2933/House('1AFu55Hs')?$expand=HouseHasFormalBody,HouseHasHouseIncumbency
+        //http://localhost:2933/House('1AFu55Hs')/HouseHasFormalBody('tz34m7Vt')
+        //http://localhost:2933/House/$count
+        //http://localhost:2933/House('1AFu55Hs')/HouseHasHouseSeat('TakJEinu')/$ref
+        //http://localhost:2933/House('1AFu55Hs')/HouseHasHouseSeat/$ref
+        //http://localhost:2933/House('1AFu55Hs')/HouseName/$value
+        //http://localhost:2933/House('1AFu55Hs')/HouseName
+        //http://localhost:2933/House('1AFu55Hs')/HouseHasHouseSeat/$count
+
 
         [HttpGet]
         [EnableQuery(AllowedQueryOptions = System.Web.OData.Query.AllowedQueryOptions.Select |
             System.Web.OData.Query.AllowedQueryOptions.Filter |
             System.Web.OData.Query.AllowedQueryOptions.Expand |
-            System.Web.OData.Query.AllowedQueryOptions.All )]
+            System.Web.OData.Query.AllowedQueryOptions.All)]
         public IHttpActionResult Default()
         {
             ODataQueryOptions option = GetQueryOptions(Request);

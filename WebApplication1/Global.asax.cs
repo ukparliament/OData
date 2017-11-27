@@ -28,7 +28,7 @@
 
                 var declareType = (EdmEntityType)edmModel.FindDeclaredType(removedNavProp.DeclaringType.FullName);
 
-                declareType.AddUnidirectionalNavigation(new EdmNavigationPropertyInfo()
+                var prop = declareType.AddUnidirectionalNavigation(new EdmNavigationPropertyInfo()
                 {
                     TargetMultiplicity = removedNavProp.Multiplicity,
                     Target = (EdmEntityType)edmModel.FindDeclaredType($"{clrType.Namespace}.{clrType.Name.Substring(1)}"),
