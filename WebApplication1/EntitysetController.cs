@@ -1,14 +1,8 @@
 ﻿namespace WebApplication1
 {
-    using Parliament.Ontology.Base;
-    using Parliament.Ontology.Code;
-    using System.Linq;
-    using System.Linq.Expressions;
-    using System.Net.Http;
     using System.Web.Http;
     using System.Web.OData;
     using System.Web.OData.Query;
-    using System.Web.OData.Routing;
 
     public class EntitysetController : BaseController
     {
@@ -52,10 +46,10 @@
 
 
         [HttpGet]
-        [EnableQuery(AllowedQueryOptions = System.Web.OData.Query.AllowedQueryOptions.Select |
-            System.Web.OData.Query.AllowedQueryOptions.Filter |
-            System.Web.OData.Query.AllowedQueryOptions.Expand |
-            System.Web.OData.Query.AllowedQueryOptions.All)]
+        [EnableQuery(AllowedQueryOptions = AllowedQueryOptions.Select |
+            AllowedQueryOptions.Filter |
+            AllowedQueryOptions.Expand |
+            AllowedQueryOptions.All, MaxTop =100)]
         public IHttpActionResult Default()
         {
             ODataQueryOptions option = GetQueryOptions(Request);
