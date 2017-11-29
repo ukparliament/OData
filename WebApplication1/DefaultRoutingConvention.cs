@@ -17,6 +17,8 @@
         {
             if (request.Method == HttpMethod.Get)
             {
+                return "Entityset";
+
                 switch (odataPath.PathTemplate)
                 {
                     case "~/entityset": // http://example.com/Person
@@ -45,6 +47,12 @@
                     // does this exist? case "~/entityset/key/navigation/key":
 
                     case "~/entityset/key/navigation/key":
+                        return "Entityset";
+
+                    case "~/entityset/key/navigation/key/navigation":
+                        return "Entityset";
+
+                    case "~/entityset/key/navigation/key/navigation/key":
                         return "Entityset";
 
                     case "~/entityset/key/navigation/key/$ref":

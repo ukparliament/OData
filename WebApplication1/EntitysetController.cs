@@ -3,6 +3,7 @@
     using System.Web.Http;
     using System.Web.OData;
     using System.Web.OData.Query;
+    using System.Web.OData.Routing;
 
     public class EntitysetController : BaseController
     {
@@ -44,16 +45,19 @@
         //http://localhost:2933/House('1AFu55Hs')/HouseName
         //http://localhost:2933/House('1AFu55Hs')/HouseHasHouseSeat/$count
 
+        //combination of expand and select, need to debug.
+        //http://localhost:2933/House('1AFu55Hs')?$expand=HouseHasHouseSeat&$select=HouseName,HouseHasHouseSeat/HouseSeatName
+
 
         [HttpGet]
         [EnableQuery(AllowedQueryOptions = AllowedQueryOptions.Select |
             AllowedQueryOptions.Filter |
             AllowedQueryOptions.Expand |
             AllowedQueryOptions.All, MaxTop =100)]
-        public IHttpActionResult Default()
+        public IHttpActionResult Default(ODataPath odataPath)
         {
-            ODataQueryOptions option = GetQueryOptions(Request);
-            object result = GenerateODataResult(option);
+            ODataQueryOptions option = GetQueryOptions(Request, odataPath);
+            object result = GenerateODataResult(option, odataPath);
             /*Format options*/
             if (option.RawValues.Format != null)
             {

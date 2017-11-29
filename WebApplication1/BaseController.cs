@@ -51,19 +51,20 @@
             return mappingAssembly.GetType(type.FullTypeName());
         }
 
-        protected static ODataQueryOptions GetQueryOptions(HttpRequestMessage request)
+        protected static ODataQueryOptions GetQueryOptions(HttpRequestMessage request, System.Web.OData.Routing.ODataPath odataPath)
         {
             System.Web.OData.Routing.ODataPath path = request.Properties["System.Web.OData.Path"] as System.Web.OData.Routing.ODataPath;
-            var edmType = path.Segments[0].EdmType.AsElementType() as EdmEntityType;
+            var edmType = path.Segments.Last().EdmType.AsElementType() as EdmEntityType;
             Type entityType = GetType(edmType);
             ODataQueryContext context = new ODataQueryContext(Global.edmModel, entityType, path);
             return new ODataQueryOptions(context, request);
         }
 
-        public static object Execute(ODataQueryOptions options)
+        public static object Execute(ODataQueryOptions options, System.Web.OData.Routing.ODataPath odataPath)
         {
             string sparqlEndpoint = ConfigurationManager.ConnectionStrings["SparqlEndpoint"].ConnectionString;
-            string queryString = new SparqlBuilder(options).BuildSparql();
+            //string queryString = new SparqlBuilder(options, odataPath).BuildSparql();
+            string queryString = new SparqlBuilder(options, odataPath).BuildSparqlNew();
             IGraph graph = null;
             using (var connector = new SparqlConnector(new Uri(sparqlEndpoint)))
             {
@@ -118,9 +119,9 @@
             }
         }
 
-        protected static object GenerateODataResult(ODataQueryOptions options)
+        protected static object GenerateODataResult(ODataQueryOptions options, System.Web.OData.Routing.ODataPath odataPath)
         {
-            IEnumerable<IOntologyInstance> results = Execute(options) as IEnumerable<IOntologyInstance>;
+            IEnumerable<IOntologyInstance> results = Execute(options, odataPath) as IEnumerable<IOntologyInstance>;
 
             RemoveIDPrefix(results);
 
