@@ -25,10 +25,10 @@
 
             var config = GlobalConfiguration.Configuration;
             config.MapODataServiceRoute("ODataRoute", null, edmModel, handler, conventions);
-            config.Select().Expand().Filter().OrderBy().MaxTop(100).Count();
-            config.Formatters.JsonFormatter.SerializerSettings
-                .ReferenceLoopHandling = Newtonsoft.Json.ReferenceLoopHandling.Ignore;
-            config.Formatters.Remove(config.Formatters.XmlFormatter);
+            config.Select().Expand().Filter().OrderBy().Count().MaxTop(2000);
+            //config.Formatters.JsonFormatter.SerializerSettings
+            //    .ReferenceLoopHandling = Newtonsoft.Json.ReferenceLoopHandling.Ignore;
+            //config.Formatters.Remove(config.Formatters.XmlFormatter);
         }
     }
 }

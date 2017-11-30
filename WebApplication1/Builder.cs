@@ -34,7 +34,7 @@
                 //entityType.QueryConfiguration.SetMaxTop(100);
                 //entityType.QueryConfiguration.SetPageSize(100);
                 var conf = this.AddEntitySet(@class.Name, entityType);
-            }
+             }
 
             this.OnModelCreating = builder =>
             {

@@ -1,5 +1,6 @@
 ﻿namespace WebApplication1
 {
+    using System.IO;
     using System.Web.Http;
     using System.Web.OData;
     using System.Web.OData.Query;
@@ -35,6 +36,7 @@
         //http://localhost:2933/House?$filter=not(length(HouseName)%20lt%208)
         //http://localhost:2933/House?$filter=not%20endswith(HouseName,%20%27ords%27)
         //http://localhost:2933/Person?$filter=length(substring(PersonGivenName,%202))%20sub%20length(PersonFamilyName)%20eq%202
+        //http://localhost:2933/Person?$filter=length(substring(PersonGivenName,%201))%20sub%20length(PersonFamilyName)%20gt%206
         //http://localhost:2933/House('1AFu55Hs')/HouseHasHouseSeat/$count
         //http://localhost:2933/House('1AFu55Hs')?$expand=HouseHasFormalBody,HouseHasHouseIncumbency
         //http://localhost:2933/House('1AFu55Hs')/HouseHasFormalBody('tz34m7Vt')
@@ -46,16 +48,19 @@
         //http://localhost:2933/House('1AFu55Hs')/HouseHasHouseSeat/$count
 
         //combination of expand and select, need to debug.
-        //http://localhost:2933/House('1AFu55Hs')?$expand=HouseHasHouseSeat&$select=HouseName,HouseHasHouseSeat/HouseSeatName
+        //http://localhost:2933/House('1AFu55Hs')?$expand=HouseHasHouseSeat($select=HouseSeatName)&$select=HouseHasHouseSeat
 
 
         [HttpGet]
         [EnableQuery(AllowedQueryOptions = AllowedQueryOptions.Select |
             AllowedQueryOptions.Filter |
             AllowedQueryOptions.Expand |
-            AllowedQueryOptions.All, MaxTop =100)]
+            AllowedQueryOptions.All)]
         public IHttpActionResult Default(ODataPath odataPath)
         {
+            StreamWriter sw = new StreamWriter("c:\\temp\\odata_log.txt", true);
+            sw.WriteLine(Request.RequestUri.AbsoluteUri.ToString());
+            sw.Close();
             ODataQueryOptions option = GetQueryOptions(Request, odataPath);
             object result = GenerateODataResult(option, odataPath);
             /*Format options*/

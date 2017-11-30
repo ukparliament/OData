@@ -54,7 +54,13 @@
         protected static ODataQueryOptions GetQueryOptions(HttpRequestMessage request, System.Web.OData.Routing.ODataPath odataPath)
         {
             System.Web.OData.Routing.ODataPath path = request.Properties["System.Web.OData.Path"] as System.Web.OData.Routing.ODataPath;
-            var edmType = path.Segments.Last().EdmType.AsElementType() as EdmEntityType;
+            EdmEntityType edmType = null;
+            foreach (var seg in path.Segments.Reverse())
+            {
+                edmType = seg.EdmType.AsElementType() as EdmEntityType;
+                if (edmType != null)
+                    break;
+            }
             Type entityType = GetType(edmType);
             ODataQueryContext context = new ODataQueryContext(Global.edmModel, entityType, path);
             return new ODataQueryOptions(context, request);
@@ -63,8 +69,7 @@
         public static object Execute(ODataQueryOptions options, System.Web.OData.Routing.ODataPath odataPath)
         {
             string sparqlEndpoint = ConfigurationManager.ConnectionStrings["SparqlEndpoint"].ConnectionString;
-            //string queryString = new SparqlBuilder(options, odataPath).BuildSparql();
-            string queryString = new SparqlBuilder(options, odataPath).BuildSparqlNew();
+            string queryString = new SparqlBuilder(options, odataPath).BuildSparql();
             IGraph graph = null;
             using (var connector = new SparqlConnector(new Uri(sparqlEndpoint)))
             {
