@@ -68,8 +68,9 @@
                     TargetMultiplicity = navProp.Multiplicity,
                     Target = (EdmEntityType)edmModel.FindDeclaredType($"{clrType.Namespace}.{clrType.Name.Substring(1)}"),
                     ContainsTarget = navProp.ContainsTarget,
-                    OnDelete = EdmOnDeleteAction.None,
-                    Name = navProp.Name,
+                    OnDelete = navProp.OnDeleteAction,
+                    Name = navProp.Name
+                    
                 });
             }
             this.ValidateModel(edmModel);
