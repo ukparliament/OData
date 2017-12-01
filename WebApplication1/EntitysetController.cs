@@ -58,9 +58,6 @@
             AllowedQueryOptions.All)]
         public IHttpActionResult Default(ODataPath odataPath)
         {
-            StreamWriter sw = new StreamWriter("c:\\temp\\odata_log.txt", true);
-            sw.WriteLine(Request.RequestUri.AbsoluteUri.ToString());
-            sw.Close();
             ODataQueryOptions option = GetQueryOptions(Request, odataPath);
             object result = GenerateODataResult(option, odataPath);
             /*Format options*/
