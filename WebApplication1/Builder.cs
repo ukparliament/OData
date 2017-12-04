@@ -13,8 +13,12 @@
         public Builder()
         {
             var assembly = typeof(IPerson).Assembly;
-
+            this.Namespace = assembly.GetName().Name;
             var interfaces = assembly.GetTypes().Where(x => x.IsInterface);
+
+            //var container = new EdmEntityContainer(assembly.GetName().Name, "Default");
+            //this.ContainerName = assembly.GetName().Name;
+
             foreach (var @interface in interfaces)
                 this.AddEntityType(@interface);
 
@@ -60,18 +64,22 @@
             foreach (var navProp in RemovedNavigationProperties)
             {
                 var clrType = navProp.RelatedClrType;
-
                 var declareType = (EdmEntityType)edmModel.FindDeclaredType(navProp.DeclaringType.FullName);
+                var targetType = (IEdmEntityType)edmModel.FindDeclaredType($"{clrType.Namespace}.{clrType.Name.Substring(1)}");
 
                 var edmNavProp = declareType.AddUnidirectionalNavigation(new EdmNavigationPropertyInfo()
                 {
-                    TargetMultiplicity = navProp.Multiplicity,
-                    Target = (EdmEntityType)edmModel.FindDeclaredType($"{clrType.Namespace}.{clrType.Name.Substring(1)}"),
+                    TargetMultiplicity = EdmMultiplicity.Many, //= navProp.Multiplicity,
+                    Target = targetType,
                     ContainsTarget = navProp.ContainsTarget,
                     OnDelete = navProp.OnDeleteAction,
                     Name = navProp.Name
                     
                 });
+
+                var cars = (EdmEntitySet)edmModel.EntityContainer.FindEntitySet(declareType.Name);
+                var parts = (EdmEntitySet)edmModel.EntityContainer.FindEntitySet(targetType.Name);
+                cars.AddNavigationTarget(edmNavProp, parts);
             }
             this.ValidateModel(edmModel);
             return edmModel;
