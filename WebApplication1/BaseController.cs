@@ -1,7 +1,6 @@
 ﻿namespace WebApplication1
 {
     using Microsoft.OData.Edm;
-    using Microsoft.OData.UriParser;
     using Parliament.Ontology.Base;
     using Parliament.Ontology.Code;
     using Parliament.Ontology.Serializer;
@@ -9,39 +8,17 @@
     using System.Collections;
     using System.Collections.Generic;
     using System.Configuration;
-    using System.Diagnostics;
-    using System.IO;
     using System.Linq;
-    using System.Linq.Expressions;
     using System.Net.Http;
     using System.Reflection;
     using System.Web.Http;
     using System.Web.Http.Results;
     using System.Web.OData;
-    using System.Web.OData.Builder;
     using System.Web.OData.Query;
     using System.Web.OData.Routing;
     using VDS.RDF;
-    using VDS.RDF.Parsing;
     using VDS.RDF.Query.Builder;
-    using VDS.RDF.Query.Filters;
-    using VDS.RDF.Query.Builder.Expressions;
-    using VDS.RDF.Query.Expressions;
-    using VDS.RDF.Query.Expressions.Functions.Arq;
-    using VDS.RDF.Query.Patterns;
     using VDS.RDF.Storage;
-    using VDS.RDF.Query.Expressions.Functions.Sparql.Boolean;
-    using VDS.RDF.Query.Expressions.Functions.Sparql.DateTime;
-    using VDS.RDF.Query.Expressions.Functions.Sparql;
-    using VDS.RDF.Query.Expressions.Functions.Sparql.Constructor;
-    using VDS.RDF.Query.Expressions.Functions.Sparql.Numeric;
-    using VDS.RDF.Query.Expressions.Functions.Sparql.Set;
-    using VDS.RDF.Query.Expressions.Functions.Sparql.String;
-    using VDS.RDF.Query.Expressions.Comparison;
-    using VDS.RDF.Query.Expressions.Primary;
-    using VDS.RDF.Query.Expressions.Conditional;
-    using VDS.RDF.Query.Expressions.Arithmetic;
-    using VDS.RDF.Query.Algebra;
 
     public class BaseController : ODataController
     {
@@ -49,43 +26,6 @@
         {
             var mappingAssembly = typeof(IPerson).Assembly; // TODO: ???
             return mappingAssembly.GetType(type.FullTypeName());
-        }
-
-        protected static ODataQueryOptions GetQueryOptions(HttpRequestMessage request, System.Web.OData.Routing.ODataPath odataPath)
-        {
-            System.Web.OData.Routing.ODataPath path = request.Properties["System.Web.OData.Path"] as System.Web.OData.Routing.ODataPath;
-            EdmEntityType edmType = null;
-            foreach (var seg in path.Segments.Reverse())
-            {
-                edmType = seg.EdmType.AsElementType() as EdmEntityType;
-                if (edmType != null)
-                    break;
-            }
-            Type entityType = GetType(edmType);
-            ODataQueryContext context = new ODataQueryContext(Global.edmModel, entityType, path);
-            return new ODataQueryOptions(context, request);
-        }
-
-        public static object Execute(ODataQueryOptions options, System.Web.OData.Routing.ODataPath odataPath)
-        {
-            string sparqlEndpoint = ConfigurationManager.ConnectionStrings["SparqlEndpoint"].ConnectionString;
-            string queryString = new SparqlBuilder(options, odataPath).BuildSparql();
-            IGraph graph = null;
-            using (var connector = new SparqlConnector(new Uri(sparqlEndpoint)))
-            {
-                graph = connector.Query(queryString) as IGraph;
-            }
-
-            Serializer serializer = new Serializer();
-            IEnumerable<IOntologyInstance> ontologyInstances = serializer.Deserialize(graph, typeof(IPerson).Assembly);
-
-            return ontologyInstances;
-        }
-
-        private static bool IsTypeEnumerable(Type type)
-        {
-            return (type != typeof(string)) && ((type.IsArray) ||
-                ((type.GetInterfaces().Any()) && (type.GetInterfaces().Any(i => i == typeof(IEnumerable)))));
         }
 
         protected static Type GetClass(Type type)
@@ -99,6 +39,43 @@
                 var name = $"{type.Namespace}.{type.Name.Substring(1)}";
                 return mappingAssembly.GetType(name);
             }
+        }
+
+        private static bool IsTypeEnumerable(Type type)
+        {
+            return (type != typeof(string)) && ((type.IsArray) ||
+                ((type.GetInterfaces().Any()) && (type.GetInterfaces().Any(i => i == typeof(IEnumerable)))));
+        }
+
+        protected static ODataQueryOptions GetQueryOptions(HttpRequestMessage request, ODataPath odataPath)
+        {
+            ODataPath path = request.Properties["System.Web.OData.Path"] as ODataPath;
+            EdmEntityType edmType = null;
+            foreach (var seg in path.Segments.Reverse())
+            {
+                edmType = seg.EdmType.AsElementType() as EdmEntityType;
+                if (edmType != null)
+                    break;
+            }
+            Type entityType = GetType(edmType);
+            ODataQueryContext context = new ODataQueryContext(Global.edmModel, entityType, path);
+            return new ODataQueryOptions(context, request);
+        }
+
+        public static object Execute(ODataQueryOptions options, ODataPath odataPath)
+        {
+            string sparqlEndpoint = ConfigurationManager.ConnectionStrings["SparqlEndpoint"].ConnectionString;
+            string queryString = new SparqlBuilder(options, odataPath).BuildSparql();
+            IGraph graph = null;
+            using (var connector = new SparqlConnector(new Uri(sparqlEndpoint)))
+            {
+                graph = connector.Query(queryString) as IGraph;
+            }
+
+            Serializer serializer = new Serializer();
+            IEnumerable<IOntologyInstance> ontologyInstances = serializer.Deserialize(graph, typeof(IPerson).Assembly);
+
+            return ontologyInstances;
         }
 
         private static void RemoveIDPrefix(IEnumerable<IOntologyInstance> results)
@@ -124,9 +101,11 @@
             }
         }
 
-        protected static object GenerateODataResult(ODataQueryOptions options, System.Web.OData.Routing.ODataPath odataPath)
+        protected static object GenerateODataResult(HttpRequestMessage request, ODataPath odataPath)
         {
-            IEnumerable<IOntologyInstance> results = Execute(options, odataPath) as IEnumerable<IOntologyInstance>;
+            ODataQueryOptions option = GetQueryOptions(request, odataPath);
+
+            IEnumerable<IOntologyInstance> results = Execute(option, odataPath) as IEnumerable<IOntologyInstance>;
 
             RemoveIDPrefix(results);
 
@@ -138,7 +117,16 @@
 
                 return castMethod.Invoke(results.Where(x=>x.GetType() == type), new object[] { results.Where(x => x.GetType() == type) });
             }
-            return results;
+
+            Type genericListType = typeof(List<>).MakeGenericType(option.Context.ElementClrType);
+
+            /*Format options*/
+            if (option.RawValues.Format != null)
+            {
+                string format = option.RawValues.Format.ToLower(); //atom, xml, json
+            }
+
+            return (IList)Activator.CreateInstance(genericListType);
         }
 
         protected IHttpActionResult Ok(object content)

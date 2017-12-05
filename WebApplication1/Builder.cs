@@ -14,11 +14,8 @@
         {
             var assembly = typeof(IPerson).Assembly;
             this.Namespace = assembly.GetName().Name;
+
             var interfaces = assembly.GetTypes().Where(x => x.IsInterface);
-
-            //var container = new EdmEntityContainer(assembly.GetName().Name, "Default");
-            //this.ContainerName = assembly.GetName().Name;
-
             foreach (var @interface in interfaces)
                 this.AddEntityType(@interface);
 
@@ -26,26 +23,14 @@
             {
                 var entityType = this.AddEntityType(@class);
                 entityType.HasKey(@class.GetProperty("Id"));
-                //var properties = @class.GetProperties();
-                //var navProps = @class.GetProperties().Where(cls => cls.PropertyType.IsInterface)
-                //    .Select(cls1 => cls1.Name);
-
-                //var structProps = properties.Select(p => p.Name).Where(p => !navProps.Contains(p));
-                //entityType.QueryConfiguration.SetSelect(structProps, System.Web.OData.Query.SelectExpandType.Allowed);
-                //entityType.QueryConfiguration.SetFilter(structProps, true);
-                //entityType.QueryConfiguration.SetExpand(navProps, 1, System.Web.OData.Query.SelectExpandType.Allowed);
-                //entityType.QueryConfiguration.SetCount(true);
-                //entityType.QueryConfiguration.SetMaxTop(100);
-                //entityType.QueryConfiguration.SetPageSize(100);
-                var conf = this.AddEntitySet(@class.Name, entityType);
+                this.AddEntitySet(@class.Name, entityType);
              }
 
             this.OnModelCreating = builder =>
             {
                 foreach (var @interface in interfaces)
-                {
                     builder.RemoveStructuralType(@interface);
-                }
+
                 foreach (var item in builder.StructuralTypes.Where(x => !x.ClrType.IsInterface))
                 {
                     foreach (var prop in item.NavigationProperties.Where(x => x.RelatedClrType.IsInterface).ToArray())
@@ -69,17 +54,16 @@
 
                 var edmNavProp = declareType.AddUnidirectionalNavigation(new EdmNavigationPropertyInfo()
                 {
-                    TargetMultiplicity = EdmMultiplicity.Many, //= navProp.Multiplicity,
+                    TargetMultiplicity = EdmMultiplicity.Many,  //navProp.Multiplicity,
                     Target = targetType,
                     ContainsTarget = navProp.ContainsTarget,
                     OnDelete = navProp.OnDeleteAction,
                     Name = navProp.Name
-                    
                 });
 
-                var cars = (EdmEntitySet)edmModel.EntityContainer.FindEntitySet(declareType.Name);
-                var parts = (EdmEntitySet)edmModel.EntityContainer.FindEntitySet(targetType.Name);
-                cars.AddNavigationTarget(edmNavProp, parts);
+                var declaredSet = (EdmEntitySet)edmModel.EntityContainer.FindEntitySet(declareType.Name);
+                var targetSet = (EdmEntitySet)edmModel.EntityContainer.FindEntitySet(targetType.Name);
+                declaredSet.AddNavigationTarget(edmNavProp, targetSet);
             }
             this.ValidateModel(edmModel);
             return edmModel;

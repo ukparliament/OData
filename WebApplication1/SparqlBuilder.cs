@@ -29,8 +29,6 @@
         private static ILiteralNode CreateLiteralNode(ConstantNode node)
         {
             NodeFactory nodeFactory = new NodeFactory();
-            //if (node.LiteralText == "null")
-            //    return LiteralNode LiteralExtensions.ToLiteral("null", nodeFactory);
             switch ((node.TypeReference.Definition as IEdmPrimitiveType).PrimitiveKind)
             {
                 case EdmPrimitiveTypeKind.DateTimeOffset:
@@ -70,7 +68,7 @@
 
             if (funcName == "now") // NOW() in sparql does not work, will generate this now in .net instead.
             {
-                ISparqlExpression exp = new VDS.RDF.Query.Expressions.Functions.Sparql.DateTime.NowFunction();
+                ISparqlExpression exp = new NowFunction();
                 return (new UnaryExpressionFilter(exp)).Expression;
             }
 
@@ -521,7 +519,6 @@
                             tripleList.Add(new TriplePattern(edmNode.RdfNode,
                                     new NodeMatchPattern(nodeFactory.CreateUriNode(new Uri(properties[expProp.Name].Item2.AbsoluteUri))),
                                     new VariablePattern($"?{expProp.Name}")));
-                            //whereList.AddRange(tripleList);
                             constructList.AddRange(tripleList);
 
                             List<ITriplePattern> predTripleList = new List<ITriplePattern>();
