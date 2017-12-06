@@ -319,7 +319,7 @@
             return null;
         }
 
-        class EdmNode
+        private class EdmNode
         {
             public string Name { get; set; }
             public EdmEntityType ItemEdmType { get; set; }
@@ -332,23 +332,19 @@
         private ODataQueryOptions QueryOptions { get; set; }
         private ISparqlExpression FilterExp { get; set; }
         private List<ITriplePattern> SubQueryTriplePatterns { get; set; }
-        private System.Web.OData.Routing.ODataPath OdataPath { get; set; }
 
         private List<EdmNode> EdmNodeList { get; set; }
 
-        public SparqlBuilder(ODataQueryOptions queryOptions, System.Web.OData.Routing.ODataPath odataPath)
+        public SparqlBuilder(ODataQueryOptions queryOptions)
         {
             QueryOptions = queryOptions;
             SubQueryTriplePatterns = new List<ITriplePattern>();
-            this.OdataPath = odataPath;
             EdmNodeList = new List<EdmNode>();
         }
 
-        private void GetEdmNodeList()
+        private void ProcessOdataPath()
         {
-            NodeFactory nodeFactory = new NodeFactory();
-
-            foreach (var seg in OdataPath.Segments)
+            foreach (var seg in QueryOptions.Context.Path.Segments)
             {
                 if (seg is EntitySetSegment)
                 {
@@ -377,6 +373,7 @@
                         else
                             keyUri = new Uri(NamespaceUri, keys[0].Value.ToString());
                     }
+                    NodeFactory nodeFactory = new NodeFactory();
                     edmNode.RdfNode = new NodeMatchPattern(nodeFactory.CreateUriNode(keyUri));
                 }
 
@@ -561,29 +558,25 @@
             /*OrderBy options*/
             if (QueryOptions.OrderBy != null && QueryOptions.OrderBy.OrderByClause != null)
             {
+                var edmNode = EdmNodeList[EdmNodeList.Count - 1];
                 foreach (var node in QueryOptions.OrderBy.OrderByNodes)
                 {
                     var typedNode = node as OrderByPropertyNode;
+                    var ordName = typedNode.Property.Name;
+                    if (ordName.ToLower() == "id")
+                        ordName = edmNode.Name;
                     if (typedNode.OrderByClause.Direction == OrderByDirection.Ascending)
-                        queryBuilder.OrderBy(typedNode.Property.Name);
+                        queryBuilder.OrderBy(ordName);
                     else
-                        queryBuilder.OrderByDescending(typedNode.Property.Name);
+                        queryBuilder.OrderByDescending(ordName);
                 }
             }
 
             return queryBuilder.BuildQuery().ToString(); 
         }
 
-        public string BuildSparql()
+        private void ProcessSkipTop()
         {
-            GetEdmNodeList();
-            ProcessSelectExpand();
-
-            /*Filter options*/
-            if (QueryOptions.Filter != null && QueryOptions.Filter.FilterClause != null)
-                FilterExp = BuildSparqlFilter(QueryOptions.Filter.FilterClause.Expression);
-
-            /*Skip and Top options*/
             if (QueryOptions.Skip != null || QueryOptions.Top != null)
             {
                 NodeFactory nodeFactory = new NodeFactory();
@@ -605,6 +598,22 @@
                 }
                 SubQueryTriplePatterns.Add(new SubQueryPattern(subqueryBuilder.BuildQuery()));
             }
+        }
+
+        public string BuildSparql()
+        {
+            /*Convert odata path segments to an EDM node list*/
+            ProcessOdataPath();
+
+            /*Select and expand options*/
+            ProcessSelectExpand();
+
+            /*Filter options*/
+            if (QueryOptions.Filter != null && QueryOptions.Filter.FilterClause != null)
+                FilterExp = BuildSparqlFilter(QueryOptions.Filter.FilterClause.Expression);
+
+            /*Skip and top options*/
+            ProcessSkipTop();
 
             return ConstructSparql();
         }

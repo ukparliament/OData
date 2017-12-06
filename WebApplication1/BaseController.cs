@@ -47,7 +47,7 @@
                 ((type.GetInterfaces().Any()) && (type.GetInterfaces().Any(i => i == typeof(IEnumerable)))));
         }
 
-        protected static ODataQueryOptions GetQueryOptions(HttpRequestMessage request, ODataPath odataPath)
+        protected static ODataQueryOptions GetQueryOptions(HttpRequestMessage request)
         {
             ODataPath path = request.Properties["System.Web.OData.Path"] as ODataPath;
             EdmEntityType edmType = null;
@@ -62,10 +62,10 @@
             return new ODataQueryOptions(context, request);
         }
 
-        public static object Execute(ODataQueryOptions options, ODataPath odataPath)
+        public static object Execute(ODataQueryOptions options)
         {
             string sparqlEndpoint = ConfigurationManager.ConnectionStrings["SparqlEndpoint"].ConnectionString;
-            string queryString = new SparqlBuilder(options, odataPath).BuildSparql();
+            string queryString = new SparqlBuilder(options).BuildSparql();
             IGraph graph = null;
             using (var connector = new SparqlConnector(new Uri(sparqlEndpoint)))
             {
@@ -101,11 +101,11 @@
             }
         }
 
-        protected static object GenerateODataResult(HttpRequestMessage request, ODataPath odataPath)
+        protected static object GenerateODataResult(HttpRequestMessage request)
         {
-            ODataQueryOptions option = GetQueryOptions(request, odataPath);
+            ODataQueryOptions options = GetQueryOptions(request);
 
-            IEnumerable<IOntologyInstance> results = Execute(option, odataPath) as IEnumerable<IOntologyInstance>;
+            IEnumerable<IOntologyInstance> results = Execute(options) as IEnumerable<IOntologyInstance>;
 
             RemoveIDPrefix(results);
 
@@ -118,15 +118,13 @@
                 return castMethod.Invoke(results.Where(x=>x.GetType() == type), new object[] { results.Where(x => x.GetType() == type) });
             }
 
-            Type genericListType = typeof(List<>).MakeGenericType(option.Context.ElementClrType);
-
             /*Format options*/
-            if (option.RawValues.Format != null)
+            if (options.RawValues.Format != null)
             {
-                string format = option.RawValues.Format.ToLower(); //atom, xml, json
+                string format = options.RawValues.Format.ToLower(); //atom, xml, json
             }
 
-            return (IList)Activator.CreateInstance(genericListType);
+            return (IList)Activator.CreateInstance(typeof(List<>).MakeGenericType(options.Context.ElementClrType));
         }
 
         protected IHttpActionResult Ok(object content)
