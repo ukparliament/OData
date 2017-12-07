@@ -7,7 +7,6 @@
     using Parliament.Ontology.Code;
     using System;
     using System.Collections.Generic;
-    using System.Configuration;
     using System.Linq;
     using System.Web.OData.Query;
     using VDS.RDF;
@@ -260,15 +259,6 @@
             return null;
         }
 
-        protected static Uri NamespaceUri
-        {
-            get
-            {
-                var namespaceBase = ConfigurationManager.AppSettings["NamespaceBase"];
-                return new Uri(namespaceBase);
-            }
-        }
-
         protected static Uri GetUri(IEdmEntityType type)
         {
             var interfaceType = GetInterface(type);
@@ -329,14 +319,16 @@
             public string IdKey { get; set; }
         }
 
+        private static Uri NamespaceUri { get; set; }
         private ODataQueryOptions QueryOptions { get; set; }
         private ISparqlExpression FilterExp { get; set; }
         private List<ITriplePattern> SubQueryTriplePatterns { get; set; }
 
         private List<EdmNode> EdmNodeList { get; set; }
 
-        public SparqlBuilder(ODataQueryOptions queryOptions)
+        public SparqlBuilder(ODataQueryOptions queryOptions, Uri namespaceUri)
         {
+            NamespaceUri = namespaceUri;
             QueryOptions = queryOptions;
             SubQueryTriplePatterns = new List<ITriplePattern>();
             EdmNodeList = new List<EdmNode>();
