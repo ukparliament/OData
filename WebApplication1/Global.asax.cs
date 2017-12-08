@@ -25,7 +25,7 @@
 
             var config = GlobalConfiguration.Configuration;
             config.MapODataServiceRoute("ODataRoute", null, edmModel, handler, conventions);
-            config.Select().Expand().Filter().OrderBy().Count(); //.MaxTop(2000);
+            config.Select().Expand().Filter().OrderBy().Count().MaxTop(null);
             //config.Formatters.JsonFormatter.SerializerSettings
             //    .ReferenceLoopHandling = Newtonsoft.Json.ReferenceLoopHandling.Ignore;
             //config.Formatters.Remove(config.Formatters.XmlFormatter);
