@@ -1,4 +1,4 @@
-﻿namespace WebApplication1
+﻿namespace Parliament.OData.Api
 {
     using System.Linq;
     using System.Net.Http;

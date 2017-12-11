@@ -1,9 +1,9 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio 15
-VisualStudioVersion = 15.0.26730.16
+VisualStudioVersion = 15.0.27004.2009
 MinimumVisualStudioVersion = 10.0.40219.1
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "WebApplication1", "WebApplication1\WebApplication1.csproj", "{0F8B2758-A2A9-4930-A24A-9B04AEEBA69F}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Parliament.OData.Api", "Parliament.OData.Api\Parliament.OData.Api.csproj", "{0F8B2758-A2A9-4930-A24A-9B04AEEBA69F}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution

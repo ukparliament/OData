@@ -1,4 +1,4 @@
-﻿namespace WebApplication1
+﻿namespace Parliament.OData.Api
 {
     using Microsoft.OData.Edm;
     using Parliament.Ontology.Code;
