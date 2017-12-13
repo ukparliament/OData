@@ -42,6 +42,7 @@
     <WarningLevel>4</WarningLevel>
   </PropertyGroup>
   <ItemGroup>
+    <Content Include="ApplicationInsights.config" />
     <None Include="packages.config">
       <SubType>Designer</SubType>
     </None>
