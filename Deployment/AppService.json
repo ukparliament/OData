@@ -1,0 +1,147 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2015-01-01/deploymentTemplate.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+    "odataAPIName": {
+      "type": "string",
+      "metadata": {
+        "description": "Name of the API app."
+      }
+    },
+    "applicationPlanName": {
+      "type": "string",
+      "metadata": {
+        "description": "Name of the Application Insights."
+      }
+    },
+    "operationsResourceGroupName": {
+      "type": "string",
+      "metadata": {
+        "description": "Name of the Resource Group where backup storage is."
+      }
+    },
+    "applicationInsightsName": {
+      "type": "string",
+      "metadata": {
+        "description": "Name of the Application Insights."
+      }
+    },
+    "idNamespace": {
+      "type": "string",
+      "metadata": {
+        "description": "Uri (namespace) for ids."
+      }
+    },
+    "apiManagementIP": {
+      "type": "string",
+      "metadata": {
+        "description": "IP address of the API Management."
+      }
+    },
+    "releaseId": {
+      "type": "int",
+      "metadata": {
+        "description": "The identifier of the current release record."
+      }
+    }
+  },
+  "variables": {},
+  "resources": [
+    {
+      "comments": "App plan",
+      "type": "Microsoft.Web/serverfarms",
+      "sku": {
+        "name": "B1",
+        "tier": "Basic",
+        "size": "B1",
+        "family": "B",
+        "capacity": 1
+      },
+      "kind": "app",
+      "name": "[parameters('applicationPlanName')]",
+      "apiVersion": "2016-09-01",
+      "location": "[resourceGroup().location]",
+      "tags": {
+        "ReleaseId": "[parameters('releaseId')]"
+      },
+      "dependsOn": []
+    },
+    {
+      "comments": "Web API app",
+      "type": "Microsoft.Web/sites",
+      "kind": "api",
+      "name": "[parameters('odataAPIName')]",
+      "apiVersion": "2016-08-01",
+      "location": "[resourceGroup().location]",
+      "tags": {
+        "ReleaseId": "[parameters('releaseId')]"
+      },
+      "properties": {
+        "siteConfig": {
+          "ipSecurityRestrictions": [
+            {
+              "ipAddress": "[parameters('apiManagementIP')]"
+            }
+          ]
+        },
+        "name": "[parameters('odataAPIName')]",
+        "hostNames": [
+          "[concat(parameters('odataAPIName'),'.azurewebsites.net')]"
+        ],
+        "enabledHostNames": [
+          "[concat(parameters('odataAPIName'),'.azurewebsites.net')]",
+          "[concat(parameters('odataAPIName'),'.scm.azurewebsites.net')]"
+        ],
+        "hostNameSslStates": [
+          {
+            "name": "[concat(parameters('odataAPIName'),'.azurewebsites.net')]",
+            "sslState": 0,
+            "thumbprint": null,
+            "ipBasedSslState": 0
+          },
+          {
+            "name": "[concat(parameters('odataAPIName'),'.scm.azurewebsites.net')]",
+            "sslState": 0,
+            "thumbprint": null,
+            "ipBasedSslState": 0
+          }
+        ],
+        "serverFarmId": "[resourceId('Microsoft.Web/serverfarms', parameters('applicationPlanName'))]"
+      },
+      "resources": [
+        {
+          "comments": "Application settings used by the App",
+          "apiVersion": "2015-08-01",
+          "name": "appsettings",
+          "type": "config",
+          "dependsOn": [
+            "[resourceId('Microsoft.Web/sites', parameters('odataAPIName'))]"
+          ],
+          "properties": {
+            "WEBSITE_NODE_DEFAULT_VERSION": "6.9.1",
+            "ApplicationInsightsInstrumentationKey": "[reference(resourceId(subscription().subscriptionId,parameters('operationsResourceGroupName'),'Microsoft.Insights/Components',parameters('applicationInsightsName')),'2014-04-01').InstrumentationKey]",
+            "IdNamespace": "[parameters('idNamespace')]"
+          }
+        },
+        {
+          "comments": "Connection strings used by the App",
+          "apiVersion": "2015-08-01",
+          "name": "connectionstrings",
+          "type": "config",
+          "dependsOn": [
+            "[resourceId('Microsoft.Web/sites', parameters('odataAPIName'))]"
+          ],
+          "properties": {
+            "SparqlEndpoint": {
+              "value": "",
+              "type": "Custom"
+            }
+          }
+        }
+      ],
+      "dependsOn": [
+        "[resourceId('Microsoft.Web/serverfarms', parameters('applicationPlanName'))]"
+      ]
+    }
+  ]
+}

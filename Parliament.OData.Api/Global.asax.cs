@@ -8,12 +8,16 @@
     using System.Web.OData.Routing;
     using System.Web.OData.Routing.Conventions;
     using System.Linq;
+    using Microsoft.ApplicationInsights.Extensibility;
+    using System.Configuration;
+    using System.Web.Http.ExceptionHandling;
 
     public class Global : HttpApplication
     {
         public static IEdmModel edmModel;
         protected void Application_Start(object sender, EventArgs e)
         {
+            TelemetryConfiguration.Active.InstrumentationKey = ConfigurationManager.AppSettings["ApplicationInsightsInstrumentationKey"];
             var builder = new Builder(); // custom
             edmModel = builder.GetEdmModel();
 
@@ -24,6 +28,7 @@
             };
 
             var config = GlobalConfiguration.Configuration;
+            config.Services.Add(typeof(IExceptionLogger), new AIExceptionLogger());
             config.MapODataServiceRoute("ODataRoute", null, edmModel, handler, conventions);
             config.Select().Expand().Filter().OrderBy().Count().MaxTop(null);
             //config.Formatters.JsonFormatter.SerializerSettings

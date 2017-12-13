@@ -1,9 +1,16 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio 15
-VisualStudioVersion = 15.0.27004.2009
+VisualStudioVersion = 15.0.27130.2003
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Parliament.OData.Api", "Parliament.OData.Api\Parliament.OData.Api.csproj", "{0F8B2758-A2A9-4930-A24A-9B04AEEBA69F}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Deployment", "Deployment", "{86D77CAF-945A-47DC-8FF2-D2BCFD964D23}"
+	ProjectSection(SolutionItems) = preProject
+		Deployment\ApplicationSettingRetrieval.ps1 = Deployment\ApplicationSettingRetrieval.ps1
+		Deployment\AppService.json = Deployment\AppService.json
+		Deployment\ODataAPISettings.ps1 = Deployment\ODataAPISettings.ps1
+	EndProjectSection
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
