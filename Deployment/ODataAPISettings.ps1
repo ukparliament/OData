@@ -33,6 +33,11 @@ $subscription=Get-AzureRmApiManagementSubscription -Context $management -Product
 Log "Gets current settings"
 $webApp = Get-AzureRmwebApp -ResourceGroupName $APIResourceGroupName -Name $ODataAPIName
 $connectionStrings=$webApp.SiteConfig.ConnectionStrings
+$webAppSettings = $webApp.SiteConfig.AppSettings
+$settings=@{}
+foreach($set in $webAppSettings){ 
+    $settings[$set.Name]=$set.Value
+}
 
 $connections = @{}
 foreach($connection in $connectionStrings){
@@ -43,7 +48,8 @@ foreach($connection in $connectionStrings){
 
 Log "Sets new data connection"
 $connections["SparqlEndpoint"]=@{Type="Custom";Value="https://$APIManagementName.azure-api.net/$APIPrefix/sparql-endpoint/master?subscription-key=$($subscription.PrimaryKey)"}
-
+Log "Sets new external API url address"
+$settings["ExternalAPIAddress"] = "https://api.parliament.uk/$APIPrefix/odata/"
 Set-AzureRmWebApp -ResourceGroupName $APIResourceGroupName -Name $ODataAPIName -ConnectionStrings $connections
 
 Log "Job well done!"

@@ -23,7 +23,7 @@
 
             var handler = new DefaultODataPathHandler(); // built-in
             var conventions = new IODataRoutingConvention[] {
-                new MetadataRoutingConvention(), // built-in
+                new DefaultMetadataRoutingConvention(), // custom
                 new DefaultRoutingConvention() // custom
             };
 

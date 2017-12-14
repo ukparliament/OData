@@ -68,6 +68,7 @@
     <Compile Include="AIExceptionLogger.cs" />
     <Compile Include="BaseController.cs" />
     <Compile Include="Builder.cs" />
+    <Compile Include="DefaultMetadataRoutingConvention.cs" />
     <Compile Include="EntitysetController.cs" />
     <Compile Include="DefaultRoutingConvention.cs" />
     <Compile Include="Global.asax.cs">
