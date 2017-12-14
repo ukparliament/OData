@@ -50,6 +50,6 @@ Log "Sets new data connection"
 $connections["SparqlEndpoint"]=@{Type="Custom";Value="https://$APIManagementName.azure-api.net/$APIPrefix/sparql-endpoint/master?subscription-key=$($subscription.PrimaryKey)"}
 Log "Sets new external API url address"
 $settings["ExternalAPIAddress"] = "https://api.parliament.uk/$APIPrefix/odata/"
-Set-AzureRmWebApp -ResourceGroupName $APIResourceGroupName -Name $ODataAPIName -ConnectionStrings $connections
+Set-AzureRmWebApp -ResourceGroupName $APIResourceGroupName -Name $ODataAPIName -ConnectionStrings $connections -AppSettings $settings
 
 Log "Job well done!"

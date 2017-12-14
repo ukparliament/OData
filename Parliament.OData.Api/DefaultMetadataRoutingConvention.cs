@@ -21,7 +21,7 @@
             var externalAddress = ConfigurationManager.AppSettings["ExternalAPIAddress"];
             Uri uriToReplace = null;
             //if (request.RequestUri.Port == 80)
-            uriToReplace = new Uri($"http://{request.RequestUri.Host}");
+            uriToReplace = new Uri($"https://{request.RequestUri.Host}");
             //else
             //    uriToReplace = new Uri($"http://{request.RequestUri.Host}:{request.RequestUri.Port}");
             request.RequestUri = new Uri(request.RequestUri.AbsoluteUri.Replace(uriToReplace.AbsoluteUri, externalAddress));
