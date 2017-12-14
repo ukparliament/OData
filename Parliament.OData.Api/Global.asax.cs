@@ -29,7 +29,13 @@
 
             var config = GlobalConfiguration.Configuration;
             config.Services.Add(typeof(IExceptionLogger), new AIExceptionLogger());
-            config.MapODataServiceRoute("ODataRoute", null, edmModel, handler, conventions);
+            Uri externalApiUri = new Uri(ConfigurationManager.AppSettings["ExternalAPIAddress"]);
+            string routePrefix = externalApiUri.AbsolutePath;
+            if (routePrefix.StartsWith("/"))
+                routePrefix = routePrefix.Substring(1);
+            if (routePrefix.EndsWith("/"))
+                routePrefix = routePrefix.Substring(0, routePrefix.Length - 1);
+            config.MapODataServiceRoute("ODataRoute", routePrefix, edmModel, handler, conventions);
             config.Select().Expand().Filter().OrderBy().Count().MaxTop(null);
             //config.Formatters.JsonFormatter.SerializerSettings
             //    .ReferenceLoopHandling = Newtonsoft.Json.ReferenceLoopHandling.Ignore;
