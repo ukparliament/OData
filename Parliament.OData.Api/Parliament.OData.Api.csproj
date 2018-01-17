@@ -58,10 +58,8 @@
   <ItemGroup>
     <Content Include="Global.asax" />
     <Content Include="lib\Parliament.Ontology.Base.dll" />
-    <Content Include="lib\Parliament.Ontology.Base.pdb" />
     <Content Include="lib\Parliament.Ontology.Code.dll" />
     <Content Include="lib\Parliament.Ontology.Serializer.dll" />
-    <Content Include="lib\Parliament.Ontology.Serializer.pdb" />
     <Content Include="Web.config">
       <SubType>Designer</SubType>
     </Content>

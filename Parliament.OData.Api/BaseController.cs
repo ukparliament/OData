@@ -24,13 +24,13 @@
     {
         protected static Type GetType(IEdmType type)
         {
-            var mappingAssembly = typeof(IPerson).Assembly; // TODO: ???
+            var mappingAssembly = typeof(Person).Assembly; // TODO: ???
             return mappingAssembly.GetType(type.FullTypeName());
         }
 
         protected static Type GetClass(Type type)
         {
-            var mappingAssembly = typeof(IPerson).Assembly; // TODO: ???
+            var mappingAssembly = typeof(Person).Assembly; // TODO: ???
             var t = mappingAssembly.GetType(type.FullName);
             if (!t.IsInterface)
                 return t;
@@ -74,12 +74,12 @@
             }
 
             Serializer serializer = new Serializer();
-            IEnumerable<IOntologyInstance> ontologyInstances = serializer.Deserialize(graph, typeof(IPerson).Assembly);
+            IEnumerable<OntologyInstance> ontologyInstances = serializer.DeserializeToClasses(graph, typeof(Person).Assembly);
 
             return ontologyInstances;
         }
 
-        private static void RemoveIDPrefix(IEnumerable<IOntologyInstance> results)
+        private static void RemoveIDPrefix(IEnumerable<OntologyInstance> results)
         {
             foreach (var result in results)
             {
@@ -88,9 +88,9 @@
                 {
                     var propValue = prop.GetValue(result);
                     var instanceType = prop.PropertyType.GetGenericArguments()[0];
-                    if (propValue != null && instanceType.GetInterface("IOntologyInstance") != null)
+                    if (propValue != null && instanceType.IsSubclassOf(typeof(OntologyInstance)))
                     {
-                        var newValue = ((IEnumerable<IOntologyInstance>)propValue).ToList();
+                        var newValue = ((IEnumerable<OntologyInstance>)propValue).ToList();
                         newValue.ForEach(instance => instance.Id = instance.Id.Split('/').Last());
 
                         var cls = GetClass(instanceType);
@@ -106,7 +106,7 @@
         {
             ODataQueryOptions options = GetQueryOptions(request);
 
-            IEnumerable<IOntologyInstance> results = Execute(options) as IEnumerable<IOntologyInstance>;
+            IEnumerable<OntologyInstance> results = Execute(options) as IEnumerable<OntologyInstance>;
 
             RemoveIDPrefix(results);
 

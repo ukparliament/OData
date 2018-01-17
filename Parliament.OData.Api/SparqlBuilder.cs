@@ -248,7 +248,7 @@
 
         private static Uri GetClassUri(IEdmStructuredType structuredType)
         {
-            var declaringType = GetInterface(structuredType);
+            var declaringType = GetType(structuredType);
 
             if (declaringType != null)
             {
@@ -261,51 +261,26 @@
 
         protected static Uri GetUri(IEdmEntityType type)
         {
-            var interfaceType = GetInterface(type);
-            var interfaceClassAttribute = interfaceType.GetCustomAttributes(typeof(ClassAttribute), false).Single() as ClassAttribute;
+            var classAttribute = GetType(type).GetCustomAttributes(typeof(ClassAttribute), false).Single() as ClassAttribute;
 
-            return interfaceClassAttribute.Uri;
-        }
-
-        protected static Type GetInterface(IEdmType type)
-        {
-            var mappingAssembly = typeof(IPerson).Assembly; // TODO: ???
-            var t = mappingAssembly.GetType(type.FullTypeName());
-            if (t.IsInterface)
-                return t;
-            else
-                return t.GetInterface($"I{((EdmEntityType)type).Name}");
+            return classAttribute.Uri;
         }
 
         protected static Type GetType(IEdmType type)
         {
-            var mappingAssembly = typeof(IPerson).Assembly; // TODO: ???
+            var mappingAssembly = typeof(Person).Assembly; // TODO: ???
             return mappingAssembly.GetType(type.FullTypeName());
         }
 
         protected static Uri GetPropertyUri(IEdmProperty structuralProperty)
         {
             var declaringType = GetType(structuralProperty.DeclaringType);
-            Type[] interfaces;
-            if (declaringType.IsInterface)
-                interfaces = new Type[] { declaringType };
-            else
-                interfaces = declaringType.GetInterfaces();
-
-            if (interfaces != null)
+            var property = declaringType.GetProperty(structuralProperty.Name);
+            if (property != null)
             {
-                foreach (var inter in interfaces)
-                {
-                    var property = inter.GetProperty(structuralProperty.Name);
-                    if (property != null)
-                    {
-                        var propertyAttribute = property.GetCustomAttributes(typeof(PropertyAttribute), false).Single() as PropertyAttribute;
-
-                        return propertyAttribute.Uri;
-                    }
-                }
+                var propertyAttribute = property.GetCustomAttributes(typeof(PropertyAttribute), false).Single() as PropertyAttribute;
+                return propertyAttribute.Uri;
             }
-
             return null;
         }
 
