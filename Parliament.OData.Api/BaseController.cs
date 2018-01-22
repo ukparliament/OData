@@ -110,10 +110,10 @@
 
             RemoveIDPrefix(results);
 
-            bool returnList = false;
+            bool returnList = true;
             var lastSeg = options.Context.Path.Segments.Last() as NavigationPropertySegment;
-            if (lastSeg != null && lastSeg.NavigationProperty.TargetMultiplicity() == EdmMultiplicity.Many)
-                returnList = true;
+            if (lastSeg != null && lastSeg.NavigationProperty.TargetMultiplicity() != EdmMultiplicity.Many)
+                returnList = false;
 
             if (results.Count() > 0)
             {
