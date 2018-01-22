@@ -1,6 +1,7 @@
 ﻿namespace Parliament.OData.Api
 {
     using Microsoft.OData.Edm;
+    using Microsoft.OData.UriParser;
     using Parliament.Ontology.Base;
     using Parliament.Ontology.Code;
     using Parliament.Ontology.Serializer;
@@ -15,7 +16,6 @@
     using System.Web.Http.Results;
     using System.Web.OData;
     using System.Web.OData.Query;
-    using System.Web.OData.Routing;
     using VDS.RDF;
     using VDS.RDF.Query.Builder;
     using VDS.RDF.Storage;
@@ -49,7 +49,7 @@
 
         protected static ODataQueryOptions GetQueryOptions(HttpRequestMessage request)
         {
-            ODataPath path = request.Properties["System.Web.OData.Path"] as ODataPath;
+            System.Web.OData.Routing.ODataPath path = request.Properties["System.Web.OData.Path"] as System.Web.OData.Routing.ODataPath;
             EdmEntityType edmType = null;
             foreach (var seg in path.Segments.Reverse())
             {
@@ -110,13 +110,24 @@
 
             RemoveIDPrefix(results);
 
+            bool returnList = false;
+            var lastSeg = options.Context.Path.Segments.Last() as NavigationPropertySegment;
+            if (lastSeg != null && lastSeg.NavigationProperty.TargetMultiplicity() == EdmMultiplicity.Many)
+                returnList = true;
+
             if (results.Count() > 0)
             {
                 var type = results.First().GetType();
 
-                MethodInfo castMethod = typeof(Enumerable).GetMethod("Cast").MakeGenericMethod(type);
-
-                return castMethod.Invoke(results.Where(x=>x.GetType() == type), new object[] { results.Where(x => x.GetType() == type) });
+                if (returnList)
+                {
+                    MethodInfo castMethod = typeof(Enumerable).GetMethod("Cast").MakeGenericMethod(type);
+                    return castMethod.Invoke(results.Where(x => x.GetType() == type), new object[] { results.Where(x => x.GetType() == type) });
+                }
+                else
+                {
+                    return results.First(x => x.GetType() == type);
+                }
             }
 
             /*Format options*/
