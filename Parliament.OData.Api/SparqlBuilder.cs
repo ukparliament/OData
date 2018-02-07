@@ -248,20 +248,13 @@
 
         private static Uri GetClassUri(IEdmStructuredType structuredType)
         {
-            var declaringType = GetType(structuredType);
-
-            if (declaringType != null)
-            {
-                ClassAttribute classAttribute = declaringType.GetCustomAttributes(typeof(ClassAttribute), false).SingleOrDefault() as ClassAttribute;
+                var classAttribute = GetInterface(structuredType).GetCustomAttributes(typeof(ClassAttribute), false).Single() as ClassAttribute;
                 return classAttribute.Uri;
-            }
-
-            return null;
         }
 
         protected static Uri GetUri(IEdmEntityType type)
         {
-            var classAttribute = GetType(type).GetCustomAttributes(typeof(ClassAttribute), false).Single() as ClassAttribute;
+            var classAttribute = GetInterface(type).GetCustomAttributes(typeof(ClassAttribute), false).Single() as ClassAttribute;
 
             return classAttribute.Uri;
         }
@@ -272,14 +265,31 @@
             return mappingAssembly.GetType(type.FullTypeName());
         }
 
+        protected static Type GetInterface(IEdmType type)
+        {
+            Type clr_type = GetType(type);
+            if (clr_type.IsInterface)
+                return clr_type;
+            else
+                return typeof(Person).Assembly.GetType($"{clr_type.Namespace}.I{clr_type.Name}");
+        }
+
         protected static Uri GetPropertyUri(IEdmProperty structuralProperty)
         {
-            var declaringType = GetType(structuralProperty.DeclaringType);
-            var property = declaringType.GetProperty(structuralProperty.Name);
-            if (property != null)
+            var clr_type = GetType(structuralProperty.DeclaringType);
+            Type [] interfaces = null;
+            if (clr_type.IsInterface)
+                interfaces = new Type [] { clr_type };
+            else
+                interfaces = clr_type.GetInterfaces();
+            foreach (var @interface in interfaces)
             {
-                var propertyAttribute = property.GetCustomAttributes(typeof(PropertyAttribute), false).Single() as PropertyAttribute;
-                return propertyAttribute.Uri;
+                var property = @interface.GetProperty(structuralProperty.Name);
+                if (property != null)
+                {
+                    var propertyAttribute = property.GetCustomAttributes(typeof(PropertyAttribute), false).Single() as PropertyAttribute;
+                    return propertyAttribute.Uri;
+                }
             }
             return null;
         }
@@ -503,8 +513,9 @@
                             variableList.Add(expProp.Name);
                             if (edmNode.RdfNode is VariablePattern)
                                 variableList.Add(edmNode.Name);
-                            subqueryBuilder = QueryBuilder.Select(variableList.ToArray()).Where(tripleList.ToArray())
-                                .Optional(gp => gp.Where(predTripleList.ToArray()));
+                            subqueryBuilder = QueryBuilder.Select(variableList.ToArray()).Where(tripleList.ToArray());
+                            foreach (var tp in predTripleList)
+                                subqueryBuilder.Optional(gp => gp.Where(tp));
                             optSubQueryTriplePatterns.Add(new SubQueryPattern(subqueryBuilder.BuildQuery()));
                         }
                     }

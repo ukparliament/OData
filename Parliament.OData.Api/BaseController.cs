@@ -74,12 +74,12 @@
             }
 
             Serializer serializer = new Serializer();
-            IEnumerable<OntologyInstance> ontologyInstances = serializer.DeserializeToClasses(graph, typeof(Person).Assembly);
+            IEnumerable<IOntologyInstance> ontologyInstances = serializer.Deserialize(graph, typeof(Person).Assembly);
 
             return ontologyInstances;
         }
 
-        private static void RemoveIDPrefix(IEnumerable<OntologyInstance> results)
+        private static void RemoveIDPrefix(IEnumerable<IOntologyInstance> results)
         {
             foreach (var result in results)
             {
@@ -88,9 +88,10 @@
                 {
                     var propValue = prop.GetValue(result);
                     var instanceType = prop.PropertyType.GetGenericArguments()[0];
-                    if (propValue != null && instanceType.IsSubclassOf(typeof(OntologyInstance)))
+                    if (propValue != null && (instanceType.IsSubclassOf(typeof(IOntologyInstance)) ||
+                        instanceType.GetInterfaces().Contains(typeof(IOntologyInstance))))
                     {
-                        var newValue = ((IEnumerable<OntologyInstance>)propValue).ToList();
+                        var newValue = ((IEnumerable<IOntologyInstance>)propValue).ToList();
                         newValue.ForEach(instance => instance.Id = instance.Id.Split('/').Last());
 
                         var cls = GetClass(instanceType);
@@ -106,7 +107,7 @@
         {
             ODataQueryOptions options = GetQueryOptions(request);
 
-            IEnumerable<OntologyInstance> results = Execute(options) as IEnumerable<OntologyInstance>;
+            IEnumerable<IOntologyInstance> results = Execute(options) as IEnumerable<IOntologyInstance>;
 
             RemoveIDPrefix(results);
 
