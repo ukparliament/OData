@@ -64,11 +64,10 @@
 
         public static object Execute(ODataQueryOptions options)
         {
-            string sparqlEndpoint = ConfigurationManager.ConnectionStrings["SparqlEndpoint"].ConnectionString;
             Uri NamespaceUri = new Uri(ConfigurationManager.AppSettings["IdNamespace"]);
             string queryString = new SparqlBuilder(options, NamespaceUri).BuildSparql();
             IGraph graph = null;
-            using (var connector = new SparqlConnector(new Uri(sparqlEndpoint)))
+            using (var connector = new SparqlConnector(new GraphDBSparqlEndpoint()))
             {
                 graph = connector.Query(queryString) as IGraph;
             }
