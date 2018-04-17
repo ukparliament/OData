@@ -7,7 +7,7 @@
     public class EntitysetController : BaseController
     {
         [HttpGet]
-        [EnableQuery(AllowedQueryOptions = AllowedQueryOptions.All)]
+        [EnableQuery(AllowedQueryOptions = AllowedQueryOptions.All, MaxExpansionDepth = 4)]
         public IHttpActionResult Default()
         {
             var result = GenerateODataResult(Request);
