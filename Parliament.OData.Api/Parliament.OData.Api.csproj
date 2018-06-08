@@ -126,13 +126,15 @@
     <Reference Include="Newtonsoft.Json, Version=10.0.0.0, Culture=neutral, PublicKeyToken=30ad4fe6b2a6aeed, processorArchitecture=MSIL">
       <HintPath>..\packages\Newtonsoft.Json.10.0.3\lib\net45\Newtonsoft.Json.dll</HintPath>
     </Reference>
-    <Reference Include="Parliament.Rdf, Version=1.0.0.0, Culture=neutral, processorArchitecture=MSIL">
+    <Reference Include="Parliament.Model, Version=0.0.0.0, Culture=neutral, processorArchitecture=MSIL">
       <SpecificVersion>False</SpecificVersion>
-      <HintPath>lib\Parliament.Rdf.dll</HintPath>
+      <HintPath>lib\Parliament.Model.dll</HintPath>
+    </Reference>
+    <Reference Include="Parliament.Rdf, Version=1.0.0.0, Culture=neutral, processorArchitecture=MSIL">
+      <HintPath>..\packages\Parliament.Rdf.1.0.2-r1323\lib\net461\Parliament.Rdf.dll</HintPath>
     </Reference>
     <Reference Include="Parliament.Rdf.Serialization, Version=1.0.0.0, Culture=neutral, processorArchitecture=MSIL">
-      <SpecificVersion>False</SpecificVersion>
-      <HintPath>lib\Parliament.Rdf.Serialization.dll</HintPath>
+      <HintPath>..\packages\Parliament.Rdf.Serialization.1.0.0-r1177\lib\net461\Parliament.Rdf.Serialization.dll</HintPath>
     </Reference>
     <Reference Include="System" />
     <Reference Include="System.Configuration" />
