@@ -57,9 +57,9 @@
   </ItemGroup>
   <ItemGroup>
     <Content Include="Global.asax" />
-    <Content Include="lib\Parliament.Ontology.Base.dll" />
-    <Content Include="lib\Parliament.Ontology.Code.dll" />
-    <Content Include="lib\Parliament.Ontology.Serializer.dll" />
+    <Content Include="lib\Parliament.Model.dll" />
+    <Content Include="lib\Parliament.Rdf.dll" />
+    <Content Include="lib\Parliament.Rdf.Serialization.dll" />
     <Content Include="Web.config">
       <SubType>Designer</SubType>
     </Content>
@@ -128,17 +128,17 @@
     <Reference Include="Newtonsoft.Json, Version=10.0.0.0, Culture=neutral, PublicKeyToken=30ad4fe6b2a6aeed, processorArchitecture=MSIL">
       <HintPath>..\packages\Newtonsoft.Json.10.0.3\lib\net45\Newtonsoft.Json.dll</HintPath>
     </Reference>
-    <Reference Include="Parliament.Ontology.Base, Version=1.0.0.0, Culture=neutral, processorArchitecture=MSIL">
+    <Reference Include="Parliament.Model, Version=0.0.0.0, Culture=neutral, processorArchitecture=MSIL">
       <SpecificVersion>False</SpecificVersion>
-      <HintPath>lib\Parliament.Ontology.Base.dll</HintPath>
+      <HintPath>lib\Parliament.Model.dll</HintPath>
     </Reference>
-    <Reference Include="Parliament.Ontology.Code, Version=0.0.0.0, Culture=neutral, processorArchitecture=MSIL">
+    <Reference Include="Parliament.Rdf, Version=1.0.0.0, Culture=neutral, processorArchitecture=MSIL">
       <SpecificVersion>False</SpecificVersion>
-      <HintPath>lib\Parliament.Ontology.Code.dll</HintPath>
+      <HintPath>lib\Parliament.Rdf.dll</HintPath>
     </Reference>
-    <Reference Include="Parliament.Ontology.Serializer, Version=1.0.0.0, Culture=neutral, processorArchitecture=MSIL">
+    <Reference Include="Parliament.Rdf.Serialization, Version=1.0.0.0, Culture=neutral, processorArchitecture=MSIL">
       <SpecificVersion>False</SpecificVersion>
-      <HintPath>lib\Parliament.Ontology.Serializer.dll</HintPath>
+      <HintPath>lib\Parliament.Rdf.Serialization.dll</HintPath>
     </Reference>
     <Reference Include="System" />
     <Reference Include="System.Configuration" />
@@ -166,6 +166,7 @@
       <HintPath>..\packages\VDS.Common.1.9.0\lib\net40-client\VDS.Common.dll</HintPath>
     </Reference>
   </ItemGroup>
+  <ItemGroup />
   <PropertyGroup>
     <VisualStudioVersion Condition="'$(VisualStudioVersion)' == ''">10.0</VisualStudioVersion>
     <VSToolsPath Condition="'$(VSToolsPath)' == ''">$(MSBuildExtensionsPath32)\Microsoft\VisualStudio\v$(VisualStudioVersion)</VSToolsPath>

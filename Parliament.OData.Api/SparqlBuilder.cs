@@ -3,8 +3,8 @@
     using Microsoft.OData.Edm;
     using Microsoft.OData.UriParser;
     using System.Web.OData.Routing;
-    using Parliament.Ontology.Base;
-    using Parliament.Ontology.Code;
+    using Parliament.Model;
+    using Parliament.Rdf;
     using System;
     using System.Collections.Generic;
     using System.Linq;
@@ -159,7 +159,7 @@
                 else if (convert.Source is SingleValuePropertyAccessNode)
                 {
                     var varName = (convert.Source as SingleValuePropertyAccessNode).Property.Name;
-                    if (varName.ToLower() == "id")
+                    if (varName.ToLower() == "localid")
                     {
                         var node = LiteralExtensions.ToLiteral(NamespaceUri.ToString().Length + 1, nodeFactory);
                         varName = EdmNodeList[EdmNodeList.Count - 1].Name;
@@ -218,7 +218,7 @@
                 .ToDictionary(p => p.Name, p =>
                     Tuple.Create<Type, Uri>(
                         p.Type.Definition.TypeKind == EdmTypeKind.Primitive ? ConvertPrimitiveEdmTypeToType(p.Type.Definition as IEdmPrimitiveType, p.Type.IsNullable) : typeof(object),
-                        p.Name == "Id" ? GetClassUri(type) : GetPropertyUri(p)
+                        p.Name == "LocalId" ? GetClassUri(type) : GetPropertyUri(p)
                     )
                 );
         }
@@ -495,7 +495,7 @@
                     List<IEdmStructuralProperty> structProps = expProp.StructProperties;
                     if (structProps == null)
                         structProps = expEntityType.StructuralProperties().ToList();
-                    foreach (var prop in structProps.Where(p => p.Name != "Id"))
+                    foreach (var prop in structProps.Where(p => p.Name != "LocalId"))
                     {
                         var expPropTriple = new TriplePattern(new VariablePattern($"?{expProp.NavigationProperty.Name}"),
                             new NodeMatchPattern(nodeFactory.CreateUriNode(new Uri(expandProperties[prop.Name].Item2.AbsoluteUri))),
@@ -505,7 +505,7 @@
                     }
 
                     IQueryBuilder subqueryBuilder = null;
-                    var variableList = structProps.Where(p => p.Name != "Id")
+                    var variableList = structProps.Where(p => p.Name != "LocalId")
                         .Select(p => $"?{p.Name}Expand").ToList();
                     variableList.Add(expProp.NavigationProperty.Name);
                     if (edmNode.RdfNode is VariablePattern)
@@ -556,7 +556,7 @@
                 if (edmNode == endEdmNode)
                 {
                     Dictionary<string, Tuple<Type, Uri>> properties = GetAllProperties(edmNode.ItemEdmType);
-                    foreach (var prop in edmNode.StructProperties.Where(p => p.Name != "Id"))
+                    foreach (var prop in edmNode.StructProperties.Where(p => p.Name != "LocalId"))
                     {
                         var propTriple = new TriplePattern(edmNode.RdfNode,
                             new NodeMatchPattern(nodeFactory.CreateUriNode(new Uri(properties[prop.Name].Item2.AbsoluteUri))),
@@ -587,7 +587,7 @@
                 {
                     var typedNode = node as OrderByPropertyNode;
                     var ordName = typedNode.Property.Name;
-                    if (ordName.ToLower() == "id")
+                    if (ordName.ToLower() == "localid")
                         ordName = edmNode.Name;
                     if (typedNode.OrderByClause.Direction == OrderByDirection.Ascending)
                         queryBuilder.OrderBy(ordName);

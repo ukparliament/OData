@@ -2,9 +2,9 @@
 {
     using Microsoft.OData.Edm;
     using Microsoft.OData.UriParser;
-    using Parliament.Ontology.Base;
-    using Parliament.Ontology.Code;
-    using Parliament.Ontology.Serializer;
+    using Parliament.Model;
+    using Parliament.Rdf;
+    using Parliament.Rdf.Serialization;
     using System;
     using System.Collections;
     using System.Collections.Generic;
@@ -72,43 +72,17 @@
                 graph = connector.Query(queryString) as IGraph;
             }
 
-            Serializer serializer = new Serializer();
-            IEnumerable<IOntologyInstance> ontologyInstances = serializer.Deserialize(graph, typeof(Person).Assembly);
+            RdfSerializer serializer = new RdfSerializer();
+            IEnumerable<IResource> ontologyInstances = serializer.Deserialize(graph, typeof(Person).Assembly, NamespaceUri);
 
             return ontologyInstances;
-        }
-
-        private static void RemoveIDPrefix(IEnumerable<IOntologyInstance> results)
-        {
-            foreach (var result in results)
-            {
-                result.Id = result.Id.Split('/').Last();
-                foreach (var prop in result.GetType().GetProperties().Where(p => IsTypeEnumerable(p.PropertyType)))
-                {
-                    var propValue = prop.GetValue(result);
-                    var instanceType = prop.PropertyType.GetGenericArguments()[0];
-                    if (propValue != null && (instanceType.IsSubclassOf(typeof(IOntologyInstance)) ||
-                        instanceType.GetInterfaces().Contains(typeof(IOntologyInstance))))
-                    {
-                        var newValue = ((IEnumerable<IOntologyInstance>)propValue).ToList();
-                        newValue.ForEach(instance => instance.Id = instance.Id.Split('/').Last());
-
-                        var cls = GetClass(instanceType);
-                        var castMethodValues = typeof(Enumerable).GetMethod("Cast")
-                            .MakeGenericMethod(cls);
-                        prop.SetValue(result, castMethodValues.Invoke(newValue, new object[] { newValue }));
-                    }
-                }
-            }
         }
 
         protected static object GenerateODataResult(HttpRequestMessage request)
         {
             ODataQueryOptions options = GetQueryOptions(request);
 
-            IEnumerable<IOntologyInstance> results = Execute(options) as IEnumerable<IOntologyInstance>;
-
-            RemoveIDPrefix(results);
+            IEnumerable<IResource> results = Execute(options) as IEnumerable<IResource>;
 
             bool returnList = true;
             var lastSeg = options.Context.Path.Segments.Last() as NavigationPropertySegment;
