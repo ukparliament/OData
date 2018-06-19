@@ -1,13 +1,13 @@
 ﻿namespace Parliament.OData.Api
 {
+    using Microsoft.AspNet.OData.Routing;
+    using Microsoft.AspNet.OData.Routing.Conventions;
     using System.Collections.Generic;
     using System.Configuration;
     using System.Linq;
     using System.Net.Http;
     using System.Web.Http.Controllers;
     using System.Web.Http.Routing;
-    using System.Web.OData.Routing;
-    using System.Web.OData.Routing.Conventions;
 
     public class CustomUrlHelper : UrlHelper
     {
@@ -21,7 +21,7 @@
             {
                 string uriToReplace = null;
                 //if (Request.RequestUri.Port == 80)
-                uriToReplace = $"https://{Request.RequestUri.Host}";
+                    uriToReplace = $"https://{Request.RequestUri.Host}";
                 //else
                 //    uriToReplace = $"http://{Request.RequestUri.Host}:{Request.RequestUri.Port}";
                 string ExternalAPIAddress = ConfigurationManager.AppSettings["ExternalAPIAddress"];

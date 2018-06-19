@@ -1,9 +1,10 @@
 ﻿namespace Parliament.OData.Api
 {
+    using Microsoft.AspNet.OData;
+    using Microsoft.AspNet.OData.Query;
     using Microsoft.OData.Edm;
     using Microsoft.OData.UriParser;
     using Parliament.Model;
-    using Parliament.Rdf;
     using Parliament.Rdf.Serialization;
     using System;
     using System.Collections;
@@ -14,8 +15,6 @@
     using System.Reflection;
     using System.Web.Http;
     using System.Web.Http.Results;
-    using System.Web.OData;
-    using System.Web.OData.Query;
     using VDS.RDF;
     using VDS.RDF.Query.Builder;
     using VDS.RDF.Storage;
@@ -28,28 +27,9 @@
             return mappingAssembly.GetType(type.FullTypeName());
         }
 
-        protected static Type GetClass(Type type)
-        {
-            var mappingAssembly = typeof(Person).Assembly; // TODO: ???
-            var t = mappingAssembly.GetType(type.FullName);
-            if (!t.IsInterface)
-                return t;
-            else
-            {
-                var name = $"{type.Namespace}.{type.Name.Substring(1)}";
-                return mappingAssembly.GetType(name);
-            }
-        }
-
-        private static bool IsTypeEnumerable(Type type)
-        {
-            return (type != typeof(string)) && ((type.IsArray) ||
-                ((type.GetInterfaces().Any()) && (type.GetInterfaces().Any(i => i == typeof(IEnumerable)))));
-        }
-
         protected static ODataQueryOptions GetQueryOptions(HttpRequestMessage request)
         {
-            System.Web.OData.Routing.ODataPath path = request.Properties["System.Web.OData.Path"] as System.Web.OData.Routing.ODataPath;
+            Microsoft.AspNet.OData.Routing.ODataPath path = request.Properties["Microsoft.AspNet.OData.Path"] as Microsoft.AspNet.OData.Routing.ODataPath;
             EdmEntityType edmType = null;
             foreach (var seg in path.Segments.Reverse())
             {
@@ -69,11 +49,11 @@
             IGraph graph = null;
             using (var connector = new SparqlConnector(new GraphDBSparqlEndpoint()))
             {
-                graph = connector.Query(queryString) as IGraph;
+                    graph = connector.Query(queryString) as IGraph;
             }
 
             RdfSerializer serializer = new RdfSerializer();
-            IEnumerable<IResource> ontologyInstances = serializer.Deserialize(graph, typeof(Person).Assembly, NamespaceUri);
+            IEnumerable<BaseResource> ontologyInstances = serializer.Deserialize(graph, typeof(Person).Assembly, NamespaceUri);
 
             return ontologyInstances;
         }
@@ -82,7 +62,7 @@
         {
             ODataQueryOptions options = GetQueryOptions(request);
 
-            IEnumerable<IResource> results = Execute(options) as IEnumerable<IResource>;
+            IEnumerable<BaseResource> results = Execute(options) as IEnumerable<BaseResource>;
 
             bool returnList = true;
             var lastSeg = options.Context.Path.Segments.Last() as NavigationPropertySegment;

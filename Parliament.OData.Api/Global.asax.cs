@@ -4,13 +4,13 @@
     using System;
     using System.Web;
     using System.Web.Http;
-    using System.Web.OData.Extensions;
-    using System.Web.OData.Routing;
-    using System.Web.OData.Routing.Conventions;
     using System.Linq;
     using Microsoft.ApplicationInsights.Extensibility;
     using System.Configuration;
     using System.Web.Http.ExceptionHandling;
+    using Microsoft.AspNet.OData.Routing;
+    using Microsoft.AspNet.OData.Routing.Conventions;
+    using Microsoft.AspNet.OData.Extensions;
 
     public class Global : HttpApplication
     {

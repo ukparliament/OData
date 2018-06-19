@@ -1,8 +1,8 @@
 ﻿namespace Parliament.OData.Api
 {
+    using Microsoft.AspNet.OData;
+    using Microsoft.AspNet.OData.Query;
     using System.Web.Http;
-    using System.Web.OData;
-    using System.Web.OData.Query;
 
     public class EntitysetController : BaseController
     {

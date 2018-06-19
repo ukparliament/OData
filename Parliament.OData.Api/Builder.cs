@@ -1,20 +1,20 @@
 ﻿namespace Parliament.OData.Api
 {
+    using Microsoft.AspNet.OData.Builder;
     using Microsoft.OData.Edm;
     using Parliament.Model;
-    using Parliament.Rdf;
+    using Parliament.Rdf.Serialization;
     using System.Linq;
-    using System.Web.OData.Builder;
 
     public class Builder : ODataConventionModelBuilder
     {
         public Builder()
         {
-            var iOntologyInstance = this.AddEntityType(typeof(IResource));
-            iOntologyInstance.HasKey(typeof(IResource).GetProperty(nameof(IResource.LocalId)));
+            var iOntologyInstance = this.AddEntityType(typeof(BaseResource));
+            iOntologyInstance.HasKey(typeof(BaseResource).GetProperty(nameof(BaseResource.LocalId)));
             iOntologyInstance.Abstract();
-            iOntologyInstance.RemoveProperty(typeof(IResource).GetProperty(nameof(IResource.Id)));
-            iOntologyInstance.RemoveProperty(typeof(IResource).GetProperty(nameof(IResource.BaseUri)));
+            iOntologyInstance.RemoveProperty(typeof(BaseResource).GetProperty(nameof(BaseResource.Id)));
+            iOntologyInstance.RemoveProperty(typeof(BaseResource).GetProperty(nameof(BaseResource.BaseUri)));
 
             var assembly = typeof(Person).Assembly;
             this.Namespace = assembly.GetName().Name;
@@ -22,7 +22,7 @@
             foreach (var type in assembly.GetTypes().Where(x => !x.IsInterface))
             {
                 var entityType = this.AddEntityType(type);
-                entityType.DerivesFrom(new EntityTypeConfiguration(this, typeof(IResource)));
+                entityType.DerivesFrom(new EntityTypeConfiguration(this, typeof(BaseResource)));
                 this.AddEntitySet(type.Name, entityType);
             }
         }

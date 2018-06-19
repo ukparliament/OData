@@ -2,13 +2,11 @@
 {
     using Microsoft.OData.Edm;
     using Microsoft.OData.UriParser;
-    using System.Web.OData.Routing;
     using Parliament.Model;
-    using Parliament.Rdf;
+    using Parliament.Rdf.Serialization;
     using System;
     using System.Collections.Generic;
     using System.Linq;
-    using System.Web.OData.Query;
     using VDS.RDF;
     using VDS.RDF.Parsing;
     using VDS.RDF.Query.Builder;
@@ -22,6 +20,7 @@
     using VDS.RDF.Query.Expressions.Primary;
     using VDS.RDF.Query.Filters;
     using VDS.RDF.Query.Patterns;
+    using Microsoft.AspNet.OData.Query;
 
     public class SparqlBuilder
     {
@@ -248,13 +247,13 @@
 
         private static Uri GetClassUri(IEdmStructuredType structuredType)
         {
-                var classAttribute = GetInterface(structuredType).GetCustomAttributes(typeof(ClassAttribute), false).Single() as ClassAttribute;
+                var classAttribute = GetType(structuredType).GetCustomAttributes(typeof(ClassAttribute), false).Single() as ClassAttribute;
                 return classAttribute.Uri;
         }
 
         protected static Uri GetUri(IEdmEntityType type)
         {
-            var classAttribute = GetInterface(type).GetCustomAttributes(typeof(ClassAttribute), false).Single() as ClassAttribute;
+            var classAttribute = GetType(type).GetCustomAttributes(typeof(ClassAttribute), false).Single() as ClassAttribute;
 
             return classAttribute.Uri;
         }
@@ -265,33 +264,13 @@
             return mappingAssembly.GetType(type.FullTypeName());
         }
 
-        protected static Type GetInterface(IEdmType type)
-        {
-            Type clr_type = GetType(type);
-            if (clr_type.IsInterface)
-                return clr_type;
-            else
-                return typeof(Person).Assembly.GetType($"{clr_type.Namespace}.I{clr_type.Name}");
-        }
-
         protected static Uri GetPropertyUri(IEdmProperty structuralProperty)
         {
-            var clr_type = GetType(structuralProperty.DeclaringType);
-            Type [] interfaces = null;
-            if (clr_type.IsInterface)
-                interfaces = new Type [] { clr_type };
+            var property = GetType(structuralProperty.DeclaringType).GetProperty(structuralProperty.Name);
+            if (property != null)
+                return (property.GetCustomAttributes(typeof(PropertyAttribute), false).Single() as PropertyAttribute).Uri;
             else
-                interfaces = clr_type.GetInterfaces();
-            foreach (var @interface in interfaces)
-            {
-                var property = @interface.GetProperty(structuralProperty.Name);
-                if (property != null)
-                {
-                    var propertyAttribute = property.GetCustomAttributes(typeof(PropertyAttribute), false).Single() as PropertyAttribute;
-                    return propertyAttribute.Uri;
-                }
-            }
-            return null;
+                return null;
         }
 
         private class EdmNode
@@ -405,9 +384,9 @@
                 {
 
                 }
-                else if (seg is UnresolvedPathSegment)
+                else
                 {
-                    throw new Exception($"{(seg as UnresolvedPathSegment).SegmentKind}: {(seg as UnresolvedPathSegment).SegmentValue}");
+                    throw new Exception($"Error with {seg.ToString()}");
                 }
             }
         }
