@@ -15,7 +15,7 @@
     public class Global : HttpApplication
     {
         public static IEdmModel edmModel;
-        public static string ODataRouteName = "ODataRoute";
+        public static string ODataRouteName = "ODataRouteNew";
 
         protected void Application_Start(object sender, EventArgs e)
         {
