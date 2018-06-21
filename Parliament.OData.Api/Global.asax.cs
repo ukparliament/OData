@@ -31,6 +31,7 @@
 
             var config = GlobalConfiguration.Configuration;
             config.Services.Add(typeof(IExceptionLogger), new AIExceptionLogger());
+            config.Routes.MapHttpRoute("OpenApiDefinition", "openapi.json", new { controller = "OpenApiDefinition" });
             config.MapODataServiceRoute(ODataRouteName, null, edmModel, handler, conventions);
             config.Select().Expand().Filter().OrderBy().Count().MaxTop(null);
             //config.Formatters.JsonFormatter.SerializerSettings

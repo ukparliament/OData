@@ -1,0 +1,225 @@
+﻿{
+  "openapi": "3.0.1",
+  "info": {
+    "title": "OData",
+    "version": "Live"
+  },
+  "servers": [
+    {
+      "url": "https://api.parliament.uk/odata"
+    }
+  ],
+  "components": {
+    "schemas": {
+      "serviceResponseModel": {
+        "type": "object",
+        "properties": {
+          "@odata.context": {
+            "type": "string"
+          },
+          "value": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "name": {
+                  "type": "string"
+                },
+                "kind": {
+                  "type": "string"
+                },
+                "url": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      },
+      "metadataResponseModel": {
+        "type": "object",
+        "properties": {
+          "?xml": {
+            "type": "object",
+            "properties": {
+              "@version": {
+                "type": "string"
+              },
+              "@encoding": {
+                "type": "string"
+              }
+            }
+          },
+          "edmx:Edmx": {
+            "type": "object",
+            "properties": {
+              "@Version": {
+                "type": "string"
+              },
+              "@xmlns:edmx": {
+                "type": "string"
+              },
+              "edmx:DataServices": {
+                "type": "object",
+                "properties": {
+                  "Schema": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "@Namespace": {
+                          "type": "string"
+                        },
+                        "@xmlns": {
+                          "type": "string"
+                        },
+                        "EntityType": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "@Name": {
+                                "type": "string"
+                              },
+                              "@Abstract": {
+                                "type": "string"
+                              },
+                              "Key": {
+                                "type": "object",
+                                "properties": {
+                                  "PropertyRef": {
+                                    "type": "object",
+                                    "properties": {
+                                      "@Name": {
+                                        "type": "string"
+                                      }
+                                    }
+                                  }
+                                }
+                              },
+                              "Property": {
+                                "type": "array",
+                                "items": {
+                                  "type": "object",
+                                  "properties": {
+                                    "@Name": {
+                                      "type": "string"
+                                    },
+                                    "@Type": {
+                                      "type": "string"
+                                    },
+                                    "@Nullable": {
+                                      "type": "string"
+                                    }
+                                  }
+                                }
+                              },
+                              "NavigationProperty": {
+                                "type": "array",
+                                "items": {
+                                  "type": "object",
+                                  "properties": {
+                                    "@Name": {
+                                      "type": "string"
+                                    },
+                                    "@Type": {
+                                      "type": "string"
+                                    }
+                                  }
+                                }
+                              }
+                            }
+                          }
+                        },
+                        "EntityContainer": {
+                          "type": "object",
+                          "properties": {
+                            "@Name": {
+                              "type": "string"
+                            },
+                            "EntitySet": {
+                              "type": "array",
+                              "items": {
+                                "type": "object",
+                                "properties": {
+                                  "@Name": {
+                                    "type": "string"
+                                  },
+                                  "@EntityType": {
+                                    "type": "string"
+                                  },
+                                  "NavigationPropertyBinding": {
+                                    "type": "array",
+                                    "items": {
+                                      "type": "object",
+                                      "properties": {
+                                        "@Path": {
+                                          "type": "string"
+                                        },
+                                        "@Target": {
+                                          "type": "string"
+                                        }
+                                      }
+                                    }
+                                  }
+                                }
+                              }
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "responses": {
+      "serviceResponse": {
+        "description": "Service document",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/serviceResponseModel"
+            }
+          }
+        }
+      },
+      "metadataResponse": {
+        "description": "Metadata document",
+        "content": {
+          "application/xml": {
+            "schema": {
+              "$ref": "#/components/schemas/metadataResponseModel"
+            }
+          }
+        }
+      }
+    }
+  },
+  "paths": {
+    "/$metadata": {
+      "get": {
+        "summary": "Metadata",
+        "responses": {
+          "200": {
+            "$ref": "#/components/responses/metadataResponse"
+          }
+        }
+      }
+    },
+    "/": {
+      "get": {
+        "summary": "Service document",
+        "responses": {
+          "200": {
+            "$ref": "#/components/responses/serviceResponse"
+          }
+        }
+      }
+    }
+  }
+}
