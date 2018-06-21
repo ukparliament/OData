@@ -1,7 +1,16 @@
 ﻿{
   "openapi": "3.0.1",
   "info": {
-    "title": "OData",
+    "title": "OData service",
+    "description": "Implementation of OData protocol based on [UK Parliament's ontology](https://github.com/ukparliament/Ontology/blob/master/Proposed-Physical-Ontology-with-certain-subclasses-commented.ttl)",
+    "contact": {
+      "name": "Data & Search team at UK Parliament",
+      "email": "data@parliament.uk"
+    },
+    "license": {
+      "name": "Open Parliament Licence",
+      "url": "https://www.parliament.uk/site-information/copyright-parliament/open-parliament-licence"
+    },
     "version": "Live"
   },
   "servers": [
@@ -9,204 +18,25 @@
       "url": "https://api.parliament.uk/odata"
     }
   ],
-  "components": {
-    "schemas": {
-      "serviceResponseModel": {
-        "type": "object",
-        "properties": {
-          "@odata.context": {
-            "type": "string"
-          },
-          "value": {
-            "type": "array",
-            "items": {
-              "type": "object",
-              "properties": {
-                "name": {
-                  "type": "string"
-                },
-                "kind": {
-                  "type": "string"
-                },
-                "url": {
-                  "type": "string"
-                }
-              }
-            }
-          }
-        }
-      },
-      "metadataResponseModel": {
-        "type": "object",
-        "properties": {
-          "?xml": {
-            "type": "object",
-            "properties": {
-              "@version": {
-                "type": "string"
-              },
-              "@encoding": {
-                "type": "string"
-              }
-            }
-          },
-          "edmx:Edmx": {
-            "type": "object",
-            "properties": {
-              "@Version": {
-                "type": "string"
-              },
-              "@xmlns:edmx": {
-                "type": "string"
-              },
-              "edmx:DataServices": {
-                "type": "object",
-                "properties": {
-                  "Schema": {
-                    "type": "array",
-                    "items": {
-                      "type": "object",
-                      "properties": {
-                        "@Namespace": {
-                          "type": "string"
-                        },
-                        "@xmlns": {
-                          "type": "string"
-                        },
-                        "EntityType": {
-                          "type": "array",
-                          "items": {
-                            "type": "object",
-                            "properties": {
-                              "@Name": {
-                                "type": "string"
-                              },
-                              "@Abstract": {
-                                "type": "string"
-                              },
-                              "Key": {
-                                "type": "object",
-                                "properties": {
-                                  "PropertyRef": {
-                                    "type": "object",
-                                    "properties": {
-                                      "@Name": {
-                                        "type": "string"
-                                      }
-                                    }
-                                  }
-                                }
-                              },
-                              "Property": {
-                                "type": "array",
-                                "items": {
-                                  "type": "object",
-                                  "properties": {
-                                    "@Name": {
-                                      "type": "string"
-                                    },
-                                    "@Type": {
-                                      "type": "string"
-                                    },
-                                    "@Nullable": {
-                                      "type": "string"
-                                    }
-                                  }
-                                }
-                              },
-                              "NavigationProperty": {
-                                "type": "array",
-                                "items": {
-                                  "type": "object",
-                                  "properties": {
-                                    "@Name": {
-                                      "type": "string"
-                                    },
-                                    "@Type": {
-                                      "type": "string"
-                                    }
-                                  }
-                                }
-                              }
-                            }
-                          }
-                        },
-                        "EntityContainer": {
-                          "type": "object",
-                          "properties": {
-                            "@Name": {
-                              "type": "string"
-                            },
-                            "EntitySet": {
-                              "type": "array",
-                              "items": {
-                                "type": "object",
-                                "properties": {
-                                  "@Name": {
-                                    "type": "string"
-                                  },
-                                  "@EntityType": {
-                                    "type": "string"
-                                  },
-                                  "NavigationPropertyBinding": {
-                                    "type": "array",
-                                    "items": {
-                                      "type": "object",
-                                      "properties": {
-                                        "@Path": {
-                                          "type": "string"
-                                        },
-                                        "@Target": {
-                                          "type": "string"
-                                        }
-                                      }
-                                    }
-                                  }
-                                }
-                              }
-                            }
-                          }
-                        }
-                      }
-                    }
-                  }
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "responses": {
-      "serviceResponse": {
-        "description": "Service document",
-        "content": {
-          "application/json": {
-            "schema": {
-              "$ref": "#/components/schemas/serviceResponseModel"
-            }
-          }
-        }
-      },
-      "metadataResponse": {
-        "description": "Metadata document",
-        "content": {
-          "application/xml": {
-            "schema": {
-              "$ref": "#/components/schemas/metadataResponseModel"
-            }
-          }
-        }
-      }
-    }
+  "externalDocs": {
+    "description": "OData documentation",
+    "url": "http://www.odata.org/documentation/"
   },
   "paths": {
     "/$metadata": {
       "get": {
         "summary": "Metadata",
+        "externalDocs": {
+          "description": "OData documentation",
+          "url": "http://docs.oasis-open.org/odata/odata/v4.01/cs01/part1-protocol/odata-v4.01-cs01-part1-protocol.html#sec_MetadataDocumentRequest"
+        },
         "responses": {
           "200": {
-            "$ref": "#/components/responses/metadataResponse"
+            "description": "OData metadata document",
+            "content": {
+              "application/xml": {
+              }
+            }
           }
         }
       }
@@ -214,9 +44,17 @@
     "/": {
       "get": {
         "summary": "Service document",
+        "externalDocs": {
+          "description": "OData documentation",
+          "url": "http://docs.oasis-open.org/odata/odata/v4.01/cs01/part1-protocol/odata-v4.01-cs01-part1-protocol.html#sec_ServiceDocumentRequest"
+        },
         "responses": {
           "200": {
-            "$ref": "#/components/responses/serviceResponse"
+            "description": "OData service document",
+            "content": {
+              "application/json": {
+              }
+            }
           }
         }
       }
