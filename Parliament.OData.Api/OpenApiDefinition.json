@@ -2,7 +2,7 @@
   "openapi": "3.0.1",
   "info": {
     "title": "OData service",
-    "description": "Implementation of OData protocol based on [UK Parliament's ontology](https://github.com/ukparliament/Ontology/blob/master/Proposed-Physical-Ontology-with-certain-subclasses-commented.ttl)",
+    "description": "Implementation of OData protocol based on [UK Parliament's ontology](https://github.com/ukparliament/Ontology/blob/master/Proposed-Physical-Ontology-with-certain-subclasses-commented.ttl). Throttled at 10 requests per second per IP address.",
     "contact": {
       "name": "Data & Search team at UK Parliament",
       "email": "data@parliament.uk"
