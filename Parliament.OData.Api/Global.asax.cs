@@ -1,16 +1,16 @@
 ﻿namespace Parliament.OData.Api
 {
-    using Microsoft.OData.Edm;
     using System;
+    using System.Configuration;
+    using System.Linq;
     using System.Web;
     using System.Web.Http;
-    using System.Linq;
-    using Microsoft.ApplicationInsights.Extensibility;
-    using System.Configuration;
     using System.Web.Http.ExceptionHandling;
+    using Microsoft.ApplicationInsights.Extensibility;
+    using Microsoft.AspNet.OData.Extensions;
     using Microsoft.AspNet.OData.Routing;
     using Microsoft.AspNet.OData.Routing.Conventions;
-    using Microsoft.AspNet.OData.Extensions;
+    using Microsoft.OData.Edm;
 
     public class Global : HttpApplication
     {
@@ -34,6 +34,9 @@
             config.Routes.MapHttpRoute("OpenApiDefinition", "openapi.json", new { controller = "OpenApiDefinition" });
             config.MapODataServiceRoute(ODataRouteName, null, edmModel, handler, conventions);
             config.Select().Expand().Filter().OrderBy().Count().MaxTop(null);
+
+            config.Formatters.Add(new ODataSparqlRequestFormatter());
+
             //config.Formatters.JsonFormatter.SerializerSettings
             //    .ReferenceLoopHandling = Newtonsoft.Json.ReferenceLoopHandling.Ignore;
             //config.Formatters.Remove(config.Formatters.XmlFormatter);

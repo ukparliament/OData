@@ -74,6 +74,7 @@
       <DependentUpon>Global.asax</DependentUpon>
     </Compile>
     <Compile Include="GraphDBSparqlEndpoint.cs" />
+    <Compile Include="ODataSparqlRequestFormatter.cs" />
     <Compile Include="OpenApiDefinitionController.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="SparqlBuilder.cs" />
