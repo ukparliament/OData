@@ -1,16 +1,15 @@
 ﻿namespace Parliament.OData.Api
 {
-    using System;
-    using System.Configuration;
-    using System.Linq;
-    using System.Web;
-    using System.Web.Http;
-    using System.Web.Http.ExceptionHandling;
     using Microsoft.ApplicationInsights.Extensibility;
     using Microsoft.AspNet.OData.Extensions;
     using Microsoft.AspNet.OData.Routing;
     using Microsoft.AspNet.OData.Routing.Conventions;
     using Microsoft.OData.Edm;
+    using System;
+    using System.Configuration;
+    using System.Linq;
+    using System.Web;
+    using System.Web.Http;
 
     public class Global : HttpApplication
     {
@@ -30,7 +29,6 @@
             };
 
             var config = GlobalConfiguration.Configuration;
-            config.Services.Add(typeof(IExceptionLogger), new AIExceptionLogger());
             config.Routes.MapHttpRoute("OpenApiDefinition", "openapi.json", new { controller = "OpenApiDefinition" });
             config.MapODataServiceRoute(ODataRouteName, null, edmModel, handler, conventions);
             config.Select().Expand().Filter().OrderBy().Count().MaxTop(null);
