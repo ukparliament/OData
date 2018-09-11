@@ -132,10 +132,10 @@
       <HintPath>..\packages\Newtonsoft.Json.11.0.2\lib\net45\Newtonsoft.Json.dll</HintPath>
     </Reference>
     <Reference Include="Parliament.Model, Version=0.0.0.0, Culture=neutral, processorArchitecture=MSIL">
-      <HintPath>..\packages\Parliament.Model.1.1.1\lib\net461\Parliament.Model.dll</HintPath>
+      <HintPath>..\packages\Parliament.Model.1.1.2-r1706\lib\net461\Parliament.Model.dll</HintPath>
     </Reference>
     <Reference Include="Parliament.Rdf.Serialization, Version=1.0.0.0, Culture=neutral, processorArchitecture=MSIL">
-      <HintPath>..\packages\Parliament.Rdf.Serialization.1.1.1\lib\net461\Parliament.Rdf.Serialization.dll</HintPath>
+      <HintPath>..\packages\Parliament.Rdf.Serialization.1.1.2-r1646\lib\net461\Parliament.Rdf.Serialization.dll</HintPath>
     </Reference>
     <Reference Include="System" />
     <Reference Include="System.Configuration" />
