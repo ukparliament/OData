@@ -32,24 +32,16 @@ $subscription=Get-AzureRmApiManagementSubscription -Context $management -Product
 
 Log "Gets current settings"
 $webApp = Get-AzureRmwebApp -ResourceGroupName $APIResourceGroupName -Name $ODataAPIName
-$connectionStrings=$webApp.SiteConfig.ConnectionStrings
 $webAppSettings = $webApp.SiteConfig.AppSettings
 $settings=@{}
 foreach($set in $webAppSettings){ 
     $settings[$set.Name]=$set.Value
 }
 
-$connections = @{}
-foreach($connection in $connectionStrings){
-	if ($connection.Name -ne "SparqlEndpoint") {
-		$connections[$connection.Name]=@{Type=if ($connection.Type -eq $null){"Custom"}else{$connection.Type.ToString()};Value=$connection.ConnectionString}
-	}
-}
-
 Log "Sets new settings"
 $settings["ApiVersion"] = $APIPrefix
 $settings["SubscriptionKey"] = $subscription.PrimaryKey
 
-Set-AzureRmWebApp -ResourceGroupName $APIResourceGroupName -Name $ODataAPIName -ConnectionStrings $connections -AppSettings $settings
+Set-AzureRmWebApp -ResourceGroupName $APIResourceGroupName -Name $ODataAPIName -AppSettings $settings
 
 Log "Job well done!"
