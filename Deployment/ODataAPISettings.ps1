@@ -46,10 +46,7 @@ foreach($connection in $connectionStrings){
 	}
 }
 
-Log "Sets new data connection"
-$connections["SparqlEndpoint"]=@{Type="Custom";Value="https://$APIManagementName.azure-api.net/sparql"}
 Log "Sets new settings"
-$settings["ExternalAPIAddress"] = "https://api.parliament.uk/odata/"
 $settings["ApiVersion"] = $APIPrefix
 $settings["SubscriptionKey"] = $subscription.PrimaryKey
 
