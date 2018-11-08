@@ -2,14 +2,23 @@
 {
     using System;
     using System.Configuration;
+    using System.Linq;
     using System.Web.Http;
     using Microsoft.AspNet.OData;
     using Microsoft.AspNet.OData.Query;
 
+    public class CustomEnableQueryAttribute : EnableQueryAttribute
+    {
+        public override IQueryable ApplyQuery(IQueryable queryable, ODataQueryOptions queryOptions)
+        {
+            var ignoreQueryOptions = AllowedQueryOptions.Skip | AllowedQueryOptions.Top;
+            return queryOptions.ApplyTo(queryable, ignoreQueryOptions);
+        }
+    }
     public class EntitysetController : BaseController
     {
         [HttpGet]
-        [EnableQuery(AllowedQueryOptions = AllowedQueryOptions.All, MaxExpansionDepth = 4)]
+        [CustomEnableQuery(AllowedQueryOptions = AllowedQueryOptions.All, MaxExpansionDepth = 4)]
         public IHttpActionResult Default()
         {
             var result = BaseController.GenerateODataResult(this.Request);

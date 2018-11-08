@@ -138,21 +138,21 @@
             return null;
         }
 
-        private ISparqlExpression BuildSparqlFilter(SingleValueNode filterNode)
+        private ISparqlExpression BuildSparqlFilter(SingleValueNode filterNode, string suffix = "")
         {
             NodeFactory nodeFactory = new NodeFactory();
 
             if (filterNode.GetType() == typeof(SingleValueFunctionCallNode))
                 return BuildFunctionExpression(filterNode as SingleValueFunctionCallNode);
             else if (filterNode.GetType() == typeof(SingleValuePropertyAccessNode))
-                return new VariableTerm($"?{(filterNode as SingleValuePropertyAccessNode).Property.Name}");
+                return new VariableTerm($"?{(filterNode as SingleValuePropertyAccessNode).Property.Name}{suffix}");
             else if (filterNode.GetType() == typeof(ConstantNode))
                 return new ConstantTerm(CreateLiteralNode(filterNode as ConstantNode));
             else if (filterNode.GetType() == typeof(ConvertNode))
             {
                 var convert = filterNode as ConvertNode;
                 if (convert.Source is SingleValueFunctionCallNode)
-                    return BuildSparqlFilter(convert.Source as SingleValueFunctionCallNode);
+                    return BuildSparqlFilter(convert.Source as SingleValueFunctionCallNode, suffix);
                 else if (convert.Source is ConstantNode)
                     return new ConstantTerm(CreateLiteralNode(convert.Source as ConstantNode));
                 else if (convert.Source is SingleValuePropertyAccessNode)
@@ -163,18 +163,18 @@
                         var node = LiteralExtensions.ToLiteral(NamespaceUri.ToString().Length + 1, nodeFactory);
                         varName = EdmNodeList[EdmNodeList.Count - 1].Name;
                         return (new UnaryExpressionFilter(
-                            new SubStrFunction(new StrFunction(new VariableTerm($"?{varName}")), 
+                            new SubStrFunction(new StrFunction(new VariableTerm($"?{varName}{suffix}")), 
                             (new ConstantTerm(node))))).Expression;
                     }
                     else
-                        return new VariableTerm($"?{varName}");
+                        return new VariableTerm($"?{varName}{suffix}");
                 }
             }
             else if (filterNode.GetType() == typeof(BinaryOperatorNode))
             {
                 var binaryOperator = filterNode as BinaryOperatorNode;
-                var left = BuildSparqlFilter(binaryOperator.Left);
-                var right = BuildSparqlFilter(binaryOperator.Right);
+                var left = BuildSparqlFilter(binaryOperator.Left, suffix);
+                var right = BuildSparqlFilter(binaryOperator.Right, suffix);
 
                 if (binaryOperator.OperatorKind == BinaryOperatorKind.And)
                     return new AndExpression(left, right);
@@ -205,7 +205,7 @@
             {
                 var unaryOperator = filterNode as UnaryOperatorNode;
                 if (unaryOperator.OperatorKind == UnaryOperatorKind.Not)
-                    return new NotEqualsExpression(BuildSparqlFilter(unaryOperator.Operand),
+                    return new NotEqualsExpression(BuildSparqlFilter(unaryOperator.Operand, suffix),
                         new ConstantTerm(LiteralExtensions.ToLiteral(true, nodeFactory)));
             }
             return null;
@@ -287,6 +287,10 @@
         {
             public IEdmNavigationProperty NavigationProperty;
             public List<IEdmStructuralProperty> StructProperties { get; set; }
+            public SingleValueNode Filters { get; set; }
+            public long? Top { get; set; }
+            public long? Skip { get; set; }
+            public OrderByClause OrderBy { get; set; }
             public List<EdmNode> NestedEdmNodes;
         }
         
@@ -429,6 +433,10 @@
                         edmNode.NavProperties.Add(customNavProp);
                         customNavProp.NestedEdmNodes = new List<EdmNode>();
                         customNavProp.NavigationProperty = segment.NavigationProperty;
+                        customNavProp.Filters = expandItem.FilterOption != null? expandItem.FilterOption.Expression: null;
+                        customNavProp.Top = expandItem.TopOption.GetValueOrDefault();
+                        customNavProp.Skip = expandItem.SkipOption.GetValueOrDefault();
+                        customNavProp.OrderBy = expandItem.OrderByOption;
                         ProcessSelectExpandItem(expandItem.SelectAndExpand, null, customNavProp, segment);
                     }
                 }
@@ -492,6 +500,35 @@
                     subqueryBuilder = QueryBuilder.Select(variableList.ToArray()).Where(tripleList.ToArray());
                     foreach (var tp in predTripleList)
                         subqueryBuilder.Optional(gp => gp.Where(tp));
+                    if (expProp.Filters != null)
+                    {
+                        ISparqlExpression FilterExp = BuildSparqlFilter(expProp.Filters, "Expand");
+                        subqueryBuilder.Filter(FilterExp);
+                    }
+                    if (expProp.Top != null & expProp.Top != 0)
+                    {
+                        subqueryBuilder.Limit(Convert.ToInt32(expProp.Top));
+                    }
+                    if (expProp.Skip != null & expProp.Skip != 0)
+                    {
+                        subqueryBuilder.Offset(Convert.ToInt32(expProp.Skip));
+                    }
+                    if (expProp.OrderBy != null)
+                    {
+                        foreach (var node in expProp.OrderBy.AsEnumerable())
+                        {
+                            //var typedNode = node as OrderByPropertyNode;
+                            var ordName = (node.Expression as SingleValuePropertyAccessNode).Property.Name;
+                            if (ordName.ToLower() == "localid")
+                                ordName = expProp.NavigationProperty.Name;
+                            else
+                                ordName = $"?{ordName}Expand";
+                            if (node.Direction == OrderByDirection.Ascending)
+                                subqueryBuilder.OrderBy(ordName);
+                            else
+                                subqueryBuilder.OrderByDescending(ordName);
+                        }
+                    }
                     optSubQueryTriplePatterns.Add(new SubQueryPattern(subqueryBuilder.BuildQuery()));
                     if (expProp.NestedEdmNodes != null && expProp.NestedEdmNodes.Count > 0)
                     {
@@ -558,33 +595,35 @@
             if (FilterExp != null)
                 queryBuilder.Filter(FilterExp);
 
-            /*OrderBy options*/
-            if (QueryOptions.OrderBy != null && QueryOptions.OrderBy.OrderByClause != null)
-            {
-                var edmNode = EdmNodeList[EdmNodeList.Count - 1];
-                foreach (var node in QueryOptions.OrderBy.OrderByNodes)
-                {
-                    var typedNode = node as OrderByPropertyNode;
-                    var ordName = typedNode.Property.Name;
-                    if (ordName.ToLower() == "localid")
-                        ordName = edmNode.Name;
-                    if (typedNode.OrderByClause.Direction == OrderByDirection.Ascending)
-                        queryBuilder.OrderBy(ordName);
-                    else
-                        queryBuilder.OrderByDescending(ordName);
-                }
-            }
+            ///*OrderBy options*/
+            //if (QueryOptions.OrderBy != null && QueryOptions.OrderBy.OrderByClause != null)
+            //{
+            //    var edmNode = EdmNodeList[EdmNodeList.Count - 1];
+            //    foreach (var node in QueryOptions.OrderBy.OrderByNodes)
+            //    {
+            //        var typedNode = node as OrderByPropertyNode;
+            //        var ordName = typedNode.Property.Name;
+            //        if (ordName.ToLower() == "localid")
+            //            ordName = edmNode.Name;
+            //        if (typedNode.OrderByClause.Direction == OrderByDirection.Ascending)
+            //            queryBuilder.OrderBy(ordName);
+            //        else
+            //            queryBuilder.OrderByDescending(ordName);
+            //    }
+            //}
 
             return queryBuilder.BuildQuery().ToString(); 
         }
 
-        private void ProcessSkipTop()
+        private void ProcessSkipTopFilterOrderBy()
         {
-            if (QueryOptions.Skip != null || QueryOptions.Top != null)
+            if (QueryOptions.Skip != null || QueryOptions.Top != null ||
+                (QueryOptions.OrderBy != null && QueryOptions.OrderBy.OrderByClause != null))
             {
                 NodeFactory nodeFactory = new NodeFactory();
                 var edmNode = EdmNodeList[EdmNodeList.Count - 1];
                 ITriplePattern[] tps;
+                List<ITriplePattern> optionList = new List<ITriplePattern>();
                 if (EdmNodeList.Count > 1 && (EdmNodeList[EdmNodeList.Count - 2].RdfNode is NodeMatchPattern))
                 {
                     var prevEdmNode = EdmNodeList[EdmNodeList.Count - 2];
@@ -596,16 +635,34 @@
                         new TriplePattern(edmNode.RdfNode,
                         new NodeMatchPattern(nodeFactory.CreateUriNode(new Uri(RdfSpecsHelper.RdfType))),
                         new NodeMatchPattern(nodeFactory.CreateUriNode(GetUri(edmNode.ItemEdmType))))};
+                    foreach (var prop in edmNode.StructProperties.Where(p => p.Name != "LocalId"))
+                    {
+                        var propTriple = new TriplePattern(edmNode.RdfNode,
+                            new NodeMatchPattern(nodeFactory.CreateUriNode(new Uri(properties[prop.Name].Item2.AbsoluteUri))),
+                            new VariablePattern($"{prop.Name}"));
+                        optionList.Add(propTriple);
+                    }
                 }
                 else
                 {
                     tps = new ITriplePattern[] { new TriplePattern(edmNode.RdfNode,
                         new NodeMatchPattern(nodeFactory.CreateUriNode(new Uri(RdfSpecsHelper.RdfType))),
                         new NodeMatchPattern(nodeFactory.CreateUriNode(GetUri(edmNode.ItemEdmType))))};
+                    Dictionary<string, Tuple<Type, Uri>> properties = GetAllProperties(edmNode.ItemEdmType);
+                    foreach (var prop in edmNode.StructProperties.Where(p => p.Name != "LocalId"))
+                    {
+                        var propTriple = new TriplePattern(edmNode.RdfNode,
+                            new NodeMatchPattern(nodeFactory.CreateUriNode(new Uri(properties[prop.Name].Item2.AbsoluteUri))),
+                            new VariablePattern($"{prop.Name}"));
+                        optionList.Add(propTriple);
+                    }
                 }
 
                 IQueryBuilder subqueryBuilder = QueryBuilder.Select(new string[] { edmNode.Name }).
                     Where(tps);
+
+                foreach (var tp in optionList)
+                    subqueryBuilder.Optional(gp => gp.Where(tp));
 
                 if (QueryOptions.Skip != null)
                     subqueryBuilder = subqueryBuilder.Offset(QueryOptions.Skip.Value);
@@ -615,6 +672,20 @@
                 {
                     subqueryBuilder = subqueryBuilder.Filter(FilterExp);
                     FilterExp = null;
+                }
+                if (QueryOptions.OrderBy != null && QueryOptions.OrderBy.OrderByClause != null)
+                {
+                    foreach (var node in QueryOptions.OrderBy.OrderByNodes)
+                    {
+                        var typedNode = node as OrderByPropertyNode;
+                        var ordName = typedNode.Property.Name;
+                        if (ordName.ToLower() == "localid")
+                            ordName = edmNode.Name;
+                        if (typedNode.OrderByClause.Direction == OrderByDirection.Ascending)
+                            subqueryBuilder.OrderBy(ordName);
+                        else
+                            subqueryBuilder.OrderByDescending(ordName);
+                    }
                 }
                 SubQueryTriplePatterns.Add(new SubQueryPattern(subqueryBuilder.BuildQuery()));
             }
@@ -633,7 +704,7 @@
                 FilterExp = BuildSparqlFilter(QueryOptions.Filter.FilterClause.Expression);
 
             /*Skip and top options*/
-            ProcessSkipTop();
+            ProcessSkipTopFilterOrderBy();
 
             return ConstructSparql();
         }
