@@ -1,4 +1,4 @@
-﻿namespace Parliament.OData.Api
+﻿namespace OData
 {
     using Microsoft.OData.Edm;
     using Microsoft.OData.UriParser;
@@ -163,7 +163,7 @@
                         var node = LiteralExtensions.ToLiteral(NamespaceUri.ToString().Length + 1, nodeFactory);
                         varName = EdmNodeList[EdmNodeList.Count - 1].Name;
                         return (new UnaryExpressionFilter(
-                            new SubStrFunction(new StrFunction(new VariableTerm($"?{varName}{suffix}")), 
+                            new SubStrFunction(new StrFunction(new VariableTerm($"?{varName}{suffix}")),
                             (new ConstantTerm(node))))).Expression;
                     }
                     else
@@ -247,8 +247,8 @@
 
         private static Uri GetClassUri(IEdmStructuredType structuredType)
         {
-                var classAttribute = GetType(structuredType).GetCustomAttributes(typeof(ClassAttribute), false).Single() as ClassAttribute;
-                return classAttribute.Uri;
+            var classAttribute = GetType(structuredType).GetCustomAttributes(typeof(ClassAttribute), false).Single() as ClassAttribute;
+            return classAttribute.Uri;
         }
 
         protected static Uri GetUri(IEdmEntityType type)
@@ -293,7 +293,7 @@
             public OrderByClause OrderBy { get; set; }
             public List<EdmNode> NestedEdmNodes;
         }
-        
+
         private static Uri NamespaceUri { get; set; }
         private ODataQueryOptions QueryOptions { get; set; }
         private ISparqlExpression FilterExp { get; set; }
@@ -433,7 +433,7 @@
                         edmNode.NavProperties.Add(customNavProp);
                         customNavProp.NestedEdmNodes = new List<EdmNode>();
                         customNavProp.NavigationProperty = segment.NavigationProperty;
-                        customNavProp.Filters = expandItem.FilterOption != null? expandItem.FilterOption.Expression: null;
+                        customNavProp.Filters = expandItem.FilterOption != null ? expandItem.FilterOption.Expression : null;
                         customNavProp.Top = expandItem.TopOption.GetValueOrDefault();
                         customNavProp.Skip = expandItem.SkipOption.GetValueOrDefault();
                         customNavProp.OrderBy = expandItem.OrderByOption;
@@ -545,7 +545,7 @@
             List<ITriplePattern> whereList = new List<ITriplePattern>();
             List<ITriplePattern> optionList = new List<ITriplePattern>();
             List<ITriplePattern> optSubQueryTriplePatterns = new List<ITriplePattern>();
-            
+
             EdmNode previousEdmNode = null;
             EdmNode endEdmNode = EdmNodeList.Last();
             foreach (var edmNode in EdmNodeList)
@@ -612,7 +612,7 @@
             //    }
             //}
 
-            return queryBuilder.BuildQuery().ToString(); 
+            return queryBuilder.BuildQuery().ToString();
         }
 
         private void ProcessSkipTopFilterOrderBy()

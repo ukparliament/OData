@@ -1,9 +1,15 @@
-﻿namespace Parliament.OData.Api
+﻿namespace OData
 {
     using Microsoft.AspNet.OData;
+    using Microsoft.AspNet.OData.Extensions;
     using Microsoft.AspNet.OData.Query;
+    using Microsoft.AspNet.OData.Routing;
+    using Microsoft.AspNetCore.Http;
+    using Microsoft.AspNetCore.Mvc;
+    //using Microsoft.IdentityModel.Protocols;
     using Microsoft.OData.Edm;
     using Microsoft.OData.UriParser;
+    //using Microsoft.OData.UriParser;
     using Parliament.Model;
     using Parliament.Rdf.Serialization;
     using System;
@@ -11,10 +17,8 @@
     using System.Collections.Generic;
     using System.Configuration;
     using System.Linq;
-    using System.Net.Http;
+    //using System.Net.Http;
     using System.Reflection;
-    using System.Web.Http;
-    using System.Web.Http.Results;
     using VDS.RDF;
     using VDS.RDF.Query.Builder;
     using VDS.RDF.Storage;
@@ -27,9 +31,10 @@
             return mappingAssembly.GetType(type.FullTypeName());
         }
 
-        protected static ODataQueryOptions GetQueryOptions(HttpRequestMessage request)
+        protected static ODataQueryOptions GetQueryOptions(HttpRequest request)
         {
-            Microsoft.AspNet.OData.Routing.ODataPath path = request.Properties["Microsoft.AspNet.OData.Path"] as Microsoft.AspNet.OData.Routing.ODataPath;
+            Microsoft.AspNet.OData.Routing.ODataPath path = request.ODataFeature().Path;
+            //Microsoft.AspNet.OData.Routing.ODataPath path = request.Path.Properties["Microsoft.AspNet.OData.Path"] as Microsoft.AspNet.OData.Routing.ODataPath;
             EdmEntityType edmType = null;
             foreach (var seg in path.Segments.Reverse())
             {
@@ -38,18 +43,25 @@
                     break;
             }
             Type entityType = GetType(edmType);
-            ODataQueryContext context = new ODataQueryContext(Global.edmModel, entityType, path);
+            ODataQueryContext context = new ODataQueryContext(Startup.edmModel, entityType, path);
             return new ODataQueryOptions(context, request);
         }
 
         public static object Execute(ODataQueryOptions options)
         {
-            Uri NamespaceUri = new Uri(ConfigurationManager.AppSettings["IdNamespace"]);
+            string sparqlEndpoint = "https://api.parliament.uk/sparql";
+                //ConfigurationManager.ConnectionStrings["SparqlEndpoint"].ConnectionString;
+            Uri NamespaceUri = new Uri("https://id.parliament.uk/");
+                //new Uri(ConfigurationManager.AppSettings["IdNamespace"]);
             string queryString = new SparqlBuilder(options, NamespaceUri).BuildSparql();
             IGraph graph = null;
-            using (var connector = new SparqlConnector(new GraphDBSparqlEndpoint()))
+            //string baseUri = "http://localhost:7201";
+            //string storeId = "TestNew";
+            //using (var connector = new SesameHttpProtocolVersion6Connector(baseUri, storeId))
+            using (var connector = new SparqlConnector(new Uri(sparqlEndpoint)))
+            //using (var connector = new SparqlConnector(new GraphDBSparqlEndpoint()))
             {
-                    graph = connector.Query(queryString) as IGraph;
+                graph = connector.Query(queryString) as IGraph;
             }
 
             RdfSerializer serializer = new RdfSerializer();
@@ -58,9 +70,11 @@
             return ontologyInstances;
         }
 
-        protected static object GenerateODataResult(HttpRequestMessage request)
+        protected static object GenerateODataResult(HttpRequest request)
         {
             ODataQueryOptions options = GetQueryOptions(request);
+            if (options.SelectExpand != null)
+                request.ODataFeature().SelectExpandClause = options.SelectExpand.SelectExpandClause;
 
             IEnumerable<BaseResource> results = Execute(options) as IEnumerable<BaseResource>;
 
@@ -76,7 +90,8 @@
                 if (returnList)
                 {
                     MethodInfo castMethod = typeof(Enumerable).GetMethod("Cast").MakeGenericMethod(type);
-                    return castMethod.Invoke(results.Where(x => x.GetType() == type), new object[] { results.Where(x => x.GetType() == type) });
+                    var res = castMethod.Invoke(results.Where(x => x.GetType() == type), new object[] { results.Where(x => x.GetType() == type) });
+                    return res;
                 }
                 else
                 {
@@ -93,10 +108,11 @@
             return (IList)Activator.CreateInstance(typeof(List<>).MakeGenericType(options.Context.ElementClrType));
         }
 
-        protected IHttpActionResult Ok(object content)
-        {
-            var resultType = typeof(OkNegotiatedContentResult<>).MakeGenericType(content.GetType());
-            return Activator.CreateInstance(resultType, content, this) as IHttpActionResult;
-        }
+        //public override OkObjectResult Ok(object content)
+        //{
+        //    //return base.Ok(content);
+        //    var resultType = typeof(OkNegotiatedContentResult<>).MakeGenericType(content.GetType());
+        //    return Activator.CreateInstance(resultType, content, this) as IActionResult;
+        //}
     }
 }
