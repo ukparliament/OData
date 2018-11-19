@@ -7,17 +7,9 @@
     using Microsoft.AspNet.OData.Routing;
     using Microsoft.AspNetCore.Mvc;
 
-    public class CustomEnableQueryAttribute : EnableQueryAttribute
-    {
-        public override IQueryable ApplyQuery(IQueryable queryable, ODataQueryOptions queryOptions)
-        {
-            var ignoreQueryOptions = AllowedQueryOptions.Skip | AllowedQueryOptions.Top;
-            return queryOptions.ApplyTo(queryable, ignoreQueryOptions);
-        }
-    }
     public class EntitysetController : BaseController
     {
-        [CustomEnableQuery(AllowedQueryOptions = AllowedQueryOptions.All, MaxExpansionDepth = 4)]
+        [EnableQuery(AllowedQueryOptions = AllowedQueryOptions.All, MaxExpansionDepth = 4)]
         [ODataRoute]
         public IActionResult Get([FromODataUri]string sparql)
         {

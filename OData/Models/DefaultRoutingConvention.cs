@@ -27,19 +27,7 @@
                 ControllerTypeInfo = typeof(EntitysetController).GetTypeInfo()
             };
 
-            //ControllerActionDescriptor odataControllerDescriptor1 = new ControllerActionDescriptor
-            //{
-            //    ControllerName = "EntityMaintenance",
-            //    ActionName = "Post,Put,Delete",
-            //    Parameters = new List<ParameterDescriptor>(),
-            //    FilterDescriptors = new List<FilterDescriptor>(),
-            //    BoundProperties = new List<ParameterDescriptor>(),
-            //    MethodInfo = typeof(EntitysetController).GetMethod("Default"),
-            //    ControllerTypeInfo = typeof(EntitysetController).GetTypeInfo()
-            //};
-
             return new List<ControllerActionDescriptor> { odataControllerDescriptor };
-            //odataControllerDescriptor1};
         }
     }
 }
