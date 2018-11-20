@@ -32,7 +32,7 @@
         public void ConfigureServices(IServiceCollection services)
         {
             services.AddMvc(Startup.SetupMvc);
-            services.Configure<RouteOptions>(Startup.ConfigureRouteOptions);
+            //services.Configure<RouteOptions>(Startup.ConfigureRouteOptions);
             services.AddOData();
             services.AddMvc().SetCompatibilityVersion(CompatibilityVersion.Version_2_1);
         }
@@ -44,8 +44,8 @@
                 app.UseDeveloperExceptionPage();
             }
 
-            app.UseRewriter(new RewriteOptions().AddRewrite("^$", "swagger/index.html", false).AddRewrite("^(swagger|favicon)(.+)$", "swagger/$1$2", true));
-            app.UseSwaggerUI(Startup.ConfigureSwaggerUI);
+            //app.UseRewriter(new RewriteOptions().AddRewrite("^$", "swagger/index.html", false).AddRewrite("^(swagger|favicon)(.+)$", "swagger/$1$2", true));
+            //app.UseSwaggerUI(Startup.ConfigureSwaggerUI);
 
             var handler = new DefaultODataPathHandler(); // built-in
             var conventions = new IODataRoutingConvention[] {
@@ -55,7 +55,8 @@
             app.UseMvc(routeBuilder =>
             {
                 routeBuilder.Select().Expand().Filter().OrderBy().MaxTop(100).Count().EnableContinueOnErrorHeader();
-                routeBuilder.MapODataServiceRoute("odata", "odata", GetEdmModel(), handler, conventions);
+                routeBuilder.MapRoute("OpenApiDefinition", "openapi.json", new { controller = "OpenApi" });
+                routeBuilder.MapODataServiceRoute("odata", null, GetEdmModel(), handler, conventions);
             });
         }
 
@@ -64,23 +65,23 @@
             mvc.RespectBrowserAcceptHeader = true;
             mvc.ReturnHttpNotAcceptable = true;
 
-            foreach (var mapping in Configuration.OpenApiMappings)
-            {
-                mvc.OutputFormatters.Insert(0, new OpenApiFormatter(mapping.MediaType, mapping.WriterType));
-                mvc.FormatterMappings.SetMediaTypeMappingForFormat(mapping.Extension, mapping.MediaType);
-                mvc.FormatterMappings.SetMediaTypeMappingForFormat(mapping.MediaType, mapping.MediaType);
-            }
+            //foreach (var mapping in Configuration.OpenApiMappings)
+            //{
+            //    mvc.OutputFormatters.Insert(0, new OpenApiFormatter(mapping.MediaType, mapping.WriterType));
+            //    mvc.FormatterMappings.SetMediaTypeMappingForFormat(mapping.Extension, mapping.MediaType);
+            //    mvc.FormatterMappings.SetMediaTypeMappingForFormat(mapping.MediaType, mapping.MediaType);
+            //}
         }
 
-        private static void ConfigureRouteOptions(RouteOptions routes)
-        {
-            routes.ConstraintMap.Add("openapi", typeof(OpenApiExtensionConstraint));
-        }
+        //private static void ConfigureRouteOptions(RouteOptions routes)
+        //{
+        //    routes.ConstraintMap.Add("openapi", typeof(OpenApiExtensionConstraint));
+        //}
 
-        private static void ConfigureSwaggerUI(SwaggerUIOptions swaggerUI)
-        {
-            swaggerUI.DocumentTitle = "UK Parliament OData API Service";
-            swaggerUI.SwaggerEndpoint("./openapi", "live");
-        }
+        //private static void ConfigureSwaggerUI(SwaggerUIOptions swaggerUI)
+        //{
+        //    swaggerUI.DocumentTitle = "UK Parliament OData API Service";
+        //    swaggerUI.SwaggerEndpoint("./openapi", "live");
+        //}
     }
 }

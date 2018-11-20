@@ -6,8 +6,8 @@
     public class OpenApiController : Controller
     {
         [HttpGet("openapi")]
-        [HttpGet("openapi.{format:openapi}")]
-        [FormatFilter]
+        //[HttpGet("openapi.{format:openapi}")]
+        //[FormatFilter]
         public OpenApiDocument Get()
         {
             return Resources.OpenApiDocument;
