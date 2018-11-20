@@ -45,7 +45,7 @@
             }
 
             //app.UseRewriter(new RewriteOptions().AddRewrite("^$", "swagger/index.html", false).AddRewrite("^(swagger|favicon)(.+)$", "swagger/$1$2", true));
-            app.UseRewriter(new RewriteOptions().AddRewrite("odata201710131103.azurewebsites.net", "api.parliament.uk/odata", false));
+            app.UseRewriter(new RewriteOptions().AddRewrite(@"^odata201710131103.azurewebsites.net", "api.parliament.uk/odata", true));
             //app.UseSwaggerUI(Startup.ConfigureSwaggerUI);
 
             var handler = new DefaultODataPathHandler(); // built-in
