@@ -3,11 +3,4 @@ bin
 obj
 *.user
 packages
-/Parliament.OData.Api/lib/new
-/Parliament.OData.Api/lib/old
-/Parliament.OData.Api/lib/old1
-/Parliament.OData.Api/lib/Original at the beginning
-/Parliament.OData.Api/lib/20180607/Parliament.Ontology.Serializer.dll
-/Parliament.OData.Api/lib/20180607/Parliament.Ontology.Code.dll
-/Parliament.OData.Api/lib/20180607/Parliament.Ontology.Base.dll
-/Parliament.OData.Api/lib/20180607
+

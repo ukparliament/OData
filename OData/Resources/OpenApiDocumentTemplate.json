@@ -9,10 +9,10 @@
       "url": "https://twitter.com/UKParliData"
     },
     "license": {
-      "name": "Creative Commons Attribution",
-      "url": "https://creativecommons.org/licenses/by/3.0/"
+      "name": "Open Parliament Licence",
+      "url": "https://www.parliament.uk/site-information/copyright-parliament/open-parliament-licence"
     },
-    "version": "",
+    "version": "Live",
     "x-TODO-termsOfService": null
   },
   "servers": [
@@ -30,7 +30,7 @@
         "summary": "Metadata",
         "externalDocs": {
           "description": "OData documentation",
-          "url": "https://api.parliament.uk/odata/$metadata"
+          "url": "http://docs.oasis-open.org/odata/odata/v4.01/cs01/part1-protocol/odata-v4.01-cs01-part1-protocol.html#sec_MetadataDocumentRequest"
         },
         "responses": {
           "200": {
@@ -49,7 +49,7 @@
         "summary": "Service document",
         "externalDocs": {
           "description": "OData documentation",
-          "url": "https://api.parliament.uk/odata"
+          "url": "http://docs.oasis-open.org/odata/odata/v4.01/cs01/part1-protocol/odata-v4.01-cs01-part1-protocol.html#sec_ServiceDocumentRequest"
         },
         "responses": {
           "200": {

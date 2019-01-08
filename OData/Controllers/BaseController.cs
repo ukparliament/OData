@@ -16,10 +16,10 @@
     using VDS.RDF;
     using VDS.RDF.Query.Builder;
     using VDS.RDF.Storage;
-
+ 
     public class BaseController : ODataController
     {
-        protected static Type GetType(IEdmType type)
+         protected static Type GetType(IEdmType type)
         {
             var mappingAssembly = typeof(Person).Assembly; // TODO: ???
             return mappingAssembly.GetType(type.FullTypeName());
@@ -40,10 +40,9 @@
             return new ODataQueryOptions(context, request);
         }
 
-        public static object Execute(ODataQueryOptions options)
+        public static object Execute(ODataQueryOptions options, string sparqlEndpoint, string nameSpace)
         {
-            string sparqlEndpoint = "https://api.parliament.uk/sparql";
-            Uri NamespaceUri = new Uri("https://id.parliament.uk/");
+            Uri NamespaceUri = new Uri(nameSpace);
             string queryString = new SparqlBuilder(options, NamespaceUri).BuildSparql();
             IGraph graph = null;
             using (var connector = new SparqlConnector(new Uri(sparqlEndpoint)))
@@ -57,13 +56,13 @@
             return ontologyInstances;
         }
 
-        protected static object GenerateODataResult(HttpRequest request)
+        protected static object GenerateODataResult(HttpRequest request, string sparqlEndpoint, string nameSpace)
         {
             ODataQueryOptions options = GetQueryOptions(request);
             if (options.SelectExpand != null)
                 request.ODataFeature().SelectExpandClause = options.SelectExpand.SelectExpandClause;
 
-            IEnumerable<BaseResource> results = Execute(options) as IEnumerable<BaseResource>;
+            IEnumerable<BaseResource> results = Execute(options, sparqlEndpoint, nameSpace) as IEnumerable<BaseResource>;
 
             bool returnList = true;
             var lastSeg = options.Context.Path.Segments.Last() as NavigationPropertySegment;

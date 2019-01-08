@@ -10,10 +10,12 @@
     using Microsoft.Extensions.Configuration;
     using Microsoft.Extensions.DependencyInjection;
     using Microsoft.OData.Edm;
+    using System.IO;
     using System.Linq;
 
     public class Startup
     {
+        public IConfiguration Configuration { get; set; }
         public static IEdmModel edmModel;
         private static IEdmModel GetEdmModel()
         {
@@ -25,12 +27,14 @@
         public Startup(IConfiguration configuration)
         {
             Program.Configuration = configuration.Get<Configuration>();
+            Configuration = new ConfigurationBuilder().SetBasePath(Directory.GetCurrentDirectory()).AddJsonFile("appsettings.json").Build();
         }
 
         public void ConfigureServices(IServiceCollection services)
         {
             services.AddMvc(Startup.SetupMvc);
             services.AddOData();
+            services.AddSingleton<IConfiguration>(Configuration);
             services.AddMvc().SetCompatibilityVersion(CompatibilityVersion.Version_2_1);
         }
 
@@ -43,7 +47,7 @@
 
             var handler = new DefaultODataPathHandler(); // built-in
             var conventions = new IODataRoutingConvention[] {
-                new DefaultMetadataRoutingConvention(),
+                new DefaultMetadataRoutingConvention(Configuration["ExternalAPIAddress"]),
                 new DefaultRoutingConvention() // custom
             };
 
