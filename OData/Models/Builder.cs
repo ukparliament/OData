@@ -1,4 +1,4 @@
-﻿namespace Parliament.OData.Api
+﻿namespace OData
 {
     using Microsoft.AspNet.OData.Builder;
     using Microsoft.OData.Edm;

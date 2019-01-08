@@ -1,17 +1,19 @@
-﻿{
+{
   "openapi": "3.0.1",
   "info": {
-    "title": "OData service",
-    "description": "Implementation of OData protocol based on [UK Parliament's ontology](https://github.com/ukparliament/Ontology/blob/master/Proposed-Physical-Ontology-with-certain-subclasses-commented.ttl). Throttled at 10 requests per second per IP address.",
+    "title": "UK Parliament OData API Service",
+    "description": "Implementation of OData protocol based on [UK Parliament's ontology](https://github.com/ukparliament/Ontology). Throttled at 100 requests per second per IP address.",
     "contact": {
       "name": "Data & Search team at UK Parliament",
-      "email": "data@parliament.uk"
+      "email": "data@parliament.uk",
+      "url": "https://twitter.com/UKParliData"
     },
     "license": {
       "name": "Open Parliament Licence",
       "url": "https://www.parliament.uk/site-information/copyright-parliament/open-parliament-licence"
     },
-    "version": "Live"
+    "version": "Live",
+    "x-TODO-termsOfService": null
   },
   "servers": [
     {
@@ -35,6 +37,7 @@
             "description": "OData metadata document",
             "content": {
               "application/xml": {
+
               }
             }
           }
@@ -53,6 +56,7 @@
             "description": "OData service document",
             "content": {
               "application/json": {
+
               }
             }
           }
