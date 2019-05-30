@@ -29,8 +29,8 @@
     <PackageReference Include="Microsoft.OpenApi" Version="1.1.1" />
     <PackageReference Include="Microsoft.OpenApi.Readers" Version="1.1.1" />
     <PackageReference Include="Microsoft.VisualStudio.Web.CodeGeneration.Design" Version="2.1.1" />
-    <PackageReference Include="Parliament.Model" Version="1.1.1" />
-    <PackageReference Include="Parliament.Rdf.Serialization" Version="1.1.1" />
+    <PackageReference Include="Parliament.Model" Version="1.1.2-r2913" />
+    <PackageReference Include="Parliament.Rdf.Serialization" Version="1.1.2-r1869" />
     <PackageReference Include="StyleCop.Analyzers" Version="1.0.2">
       <PrivateAssets>all</PrivateAssets>
       <IncludeAssets>runtime; build; native; contentfiles; analyzers</IncludeAssets>
