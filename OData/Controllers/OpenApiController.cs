@@ -15,7 +15,7 @@ namespace OData
 
     public class OpenApiController : Controller
     {
-        [HttpGet("openapi")]
+        [HttpGet("openapi.json")]
         //[HttpGet("openapi.{format:openapi}")]
         //[FormatFilter]
         public OpenApiDocument Get()
