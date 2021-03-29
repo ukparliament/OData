@@ -638,6 +638,12 @@ namespace OData
                 {
                     var prevEdmNode = EdmNodeList[EdmNodeList.Count - 2];
                     Dictionary<string, Tuple<Type, Uri>> properties = GetAllProperties(prevEdmNode.ItemEdmType);
+                    var addtional_properties = GetAllProperties(edmNode.ItemEdmType);
+                    foreach (var key in addtional_properties.Keys)
+                    {
+                        properties[key] = addtional_properties[key];
+                    }
+
                     tps = new ITriplePattern[] {
                         new TriplePattern(prevEdmNode.RdfNode,
                         new NodeMatchPattern(nodeFactory.CreateUriNode(new Uri(properties[edmNode.RdfNode.VariableName].Item2.AbsoluteUri))),
