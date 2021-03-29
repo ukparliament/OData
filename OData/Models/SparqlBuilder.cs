@@ -508,8 +508,13 @@ namespace OData
                     if (edmNode.RdfNode is VariablePattern)
                         variableList.Add(edmNode.Name);
                     subqueryBuilder = QueryBuilder.Select(variableList.ToArray()).Where(tripleList.ToArray());
-                    foreach (var tp in predTripleList)
-                        subqueryBuilder.Optional(gp => gp.Where(tp));
+
+                    if (this.QueryOptions.Count == null || !this.QueryOptions.Count.Value)
+                    {
+                        foreach (var tp in predTripleList)
+                            subqueryBuilder.Optional(gp => gp.Where(tp));
+                    }
+
                     if (expProp.Filters != null)
                     {
                         ISparqlExpression FilterExp = BuildSparqlFilter(expProp.Filters, "Expand");
@@ -597,10 +602,13 @@ namespace OData
             IQueryBuilder queryBuilder = QueryBuilder.Construct(q => q.Where(constructList.ToArray()))
                 .Where(whereList.Concat(SubQueryTriplePatterns).ToArray());
 
-            foreach (var tp in optionList)
-                queryBuilder.Optional(gp => gp.Where(tp));
-            foreach (var tp in optSubQueryTriplePatterns)
-                queryBuilder.Optional(gp => gp.Where(tp));
+            if (this.QueryOptions.Count == null || !this.QueryOptions.Count.Value)
+            {
+                foreach (var tp in optionList)
+                    queryBuilder.Optional(gp => gp.Where(tp));
+                foreach (var tp in optSubQueryTriplePatterns)
+                    queryBuilder.Optional(gp => gp.Where(tp));
+            }
 
             if (FilterExp != null)
                 queryBuilder.Filter(FilterExp);
@@ -677,8 +685,11 @@ namespace OData
                 IQueryBuilder subqueryBuilder = QueryBuilder.Select(new string[] { edmNode.Name }).
                     Where(tps);
 
-                foreach (var tp in optionList)
-                    subqueryBuilder.Optional(gp => gp.Where(tp));
+                if (this.QueryOptions.Count == null || !this.QueryOptions.Count.Value)
+                {
+                    foreach (var tp in optionList)
+                        subqueryBuilder.Optional(gp => gp.Where(tp));
+                }
 
                 if (QueryOptions.Skip != null)
                     subqueryBuilder = subqueryBuilder.Offset(QueryOptions.Skip.Value);
