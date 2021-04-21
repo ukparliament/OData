@@ -31,6 +31,7 @@ namespace OData
     using VDS.RDF.Query.Filters;
     using VDS.RDF.Query.Patterns;
     using Microsoft.AspNet.OData.Query;
+    using Microsoft.Extensions.Primitives;
 
     public class SparqlBuilder
     {
@@ -605,7 +606,17 @@ namespace OData
             if (this.QueryOptions.Count == null || !this.QueryOptions.Count.Value)
             {
                 foreach (var tp in optionList)
-                    queryBuilder.Optional(gp => gp.Where(tp));
+                {
+                    if (FilterExp.Variables.Contains(tp.Variables[0]) ||
+                        FilterExp.Variables.Contains(tp.Variables[1]))
+                    {
+                        queryBuilder.Where(tp);
+                    }
+                    else
+                    {
+                        queryBuilder.Optional(gp => gp.Where(tp));
+                    }
+                }
                 foreach (var tp in optSubQueryTriplePatterns)
                     queryBuilder.Optional(gp => gp.Where(tp));
             }
@@ -633,6 +644,19 @@ namespace OData
             return queryBuilder.BuildQuery().ToString();
         }
 
+        private void ProcessSearchFilter()
+        {
+            if (QueryOptions.Request.Query.Keys.Contains("$search"))
+            {
+                StringValues searchQuery;
+                QueryOptions.Request.Query.TryGetValue("$search", out searchQuery);
+                var searchTerms = searchQuery.FirstOrDefault();
+                if (!string.IsNullOrWhiteSpace(searchTerms))
+                {
+
+                }
+            }
+        }
         private void ProcessSkipTopFilterOrderBy()
         {
             if (QueryOptions.Skip != null || QueryOptions.Top != null ||
@@ -732,6 +756,7 @@ namespace OData
 
             /*Skip and top options*/
             ProcessSkipTopFilterOrderBy();
+            ProcessSearchFilter();
 
             return ConstructSparql();
         }
