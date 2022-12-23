@@ -38,6 +38,10 @@ namespace OData
         private static ILiteralNode CreateLiteralNode(ConstantNode node)
         {
             NodeFactory nodeFactory = new NodeFactory();
+            if (node.TypeReference == null)
+            {
+                return nodeFactory.CreateLiteralNode("null");
+            }
             switch ((node.TypeReference.Definition as IEdmPrimitiveType).PrimitiveKind)
             {
                 case EdmPrimitiveTypeKind.DateTimeOffset:
@@ -564,6 +568,7 @@ namespace OData
 
             EdmNode previousEdmNode = null;
             EdmNode endEdmNode = EdmNodeList.Last();
+            Dictionary<string, Tuple<Type, Uri>> properties = null;
             foreach (var edmNode in EdmNodeList)
             {
                 var isaTriple = new TriplePattern(edmNode.RdfNode,
@@ -587,7 +592,7 @@ namespace OData
 
                 if (edmNode == endEdmNode)
                 {
-                    Dictionary<string, Tuple<Type, Uri>> properties = GetAllProperties(edmNode.ItemEdmType);
+                    properties = GetAllProperties(edmNode.ItemEdmType);
                     foreach (var prop in edmNode.StructProperties.Where(p => p.Name != "LocalId"))
                     {
                         var propTriple = new TriplePattern(edmNode.RdfNode,
@@ -607,8 +612,8 @@ namespace OData
             {
                 foreach (var tp in optionList)
                 {
-                    if (FilterExp.Variables.Contains(tp.Variables[0]) ||
-                        FilterExp.Variables.Contains(tp.Variables[1]))
+                    if (FilterExp != null && (FilterExp.Variables.Contains(tp.Variables[0]) ||
+                        FilterExp.Variables.Contains(tp.Variables[1])) && !FilterExp.Arguments.ToList().Select(x=>x.ToString()).Contains("\"null\""))
                     {
                         queryBuilder.Where(tp);
                     }
@@ -640,8 +645,14 @@ namespace OData
             //            queryBuilder.OrderByDescending(ordName);
             //    }
             //}
+            var queryString = queryBuilder.BuildQuery().ToString();
 
-            return queryBuilder.BuildQuery().ToString();
+            foreach (var x in properties)
+            {
+                queryString = queryString.Replace($"FILTER(?{x.Key} = \"null\")", $"filter (!bound(?{x.Key}))");
+                queryString = queryString.Replace($"FILTER(?{x.Key} != \"null\")", $"filter bound(?{x.Key})");
+            }
+            return queryString;
         }
 
         private void ProcessSearchFilter()
